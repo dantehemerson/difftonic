@@ -369,3 +369,22 @@ fn char_count_skips_ansi() {
     let s = "\x1b[0m\x1b[38;2;1;2;3mhello\x1b[0m";
     assert_eq!(char_count(s), 5);
 }
+
+#[test]
+fn hunk_header_followed_by_code_line() {
+    let input = "diff --git a/x.ts b/x.ts\nindex abc..def 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1,2 +1,2 @@\n-const a = 1;\n+const a = 2;\n@@ -10,2 +10,2 @@\n const b = 3;\n-const c = 4;\n+const c = 5;\n";
+    let out = render(input, &opts());
+    let plain = strip_ansi(&out);
+    let lines: Vec<&str> = plain.lines().collect();
+    for (i, line) in lines.iter().enumerate() {
+        if line.contains("@@") && line.starts_with("@@") {
+            assert!(i + 1 < lines.len(), "hunk header has no following line");
+            let next = &lines[i + 1];
+            assert!(
+                !next.is_empty() && !next.contains("@@"),
+                "blank or hunk line immediately after hunk header: got {:?}",
+                next
+            );
+        }
+    }
+}

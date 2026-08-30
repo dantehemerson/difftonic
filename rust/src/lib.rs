@@ -718,7 +718,6 @@ pub fn render_file(file: &FileDiff, out: &mut String, theme: Theme, options: &Re
                 false,
             ));
             out.push('\n');
-            out.push('\n');
         }
         let mut old = hunk.old_start;
         let mut new = hunk.new_start;
