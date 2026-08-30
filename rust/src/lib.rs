@@ -823,9 +823,26 @@ pub fn render_line(
         let new_s = new.map(|n| pad(n, 4)).unwrap_or_else(|| "    ".into());
         let old_active = line.kind == Kind::Deletion;
         let new_active = line.kind == Kind::Addition;
+        // Each side of the gutter gets the same background as its line
+        // type (deletion/addition bg or the muted gutter bg), so the
+        // accent color visually extends into the line-number column.
+        let old_bg = if old_active {
+            Some(t.del_bg)
+        } else if new_active {
+            Some(t.add_bg)
+        } else {
+            Some(t.meta_bg)
+        };
+        let new_bg = if new_active {
+            Some(t.add_bg)
+        } else if old_active {
+            Some(t.del_bg)
+        } else {
+            Some(t.meta_bg)
+        };
         out.push_str(&paint(
             &format!("{}{}│ ", old_s, format!(" {}", new_s)),
-            Some(t.meta_bg),
+            old_bg,
             Some(if old_active {
                 t.del_accent
             } else {
@@ -834,7 +851,6 @@ pub fn render_line(
             old_active,
             !old_active,
         ));
-        let new_bg = Some(t.meta_bg);
         let new_fg = if new_active {
             t.add_accent
         } else {

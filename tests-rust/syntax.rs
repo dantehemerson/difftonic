@@ -129,3 +129,56 @@ fn highlight_indices_map_to_distinct_palette_colors() {
     assert_ne!(theme.syntax.string, theme.syntax.number);
     assert_ne!(theme.syntax.number, theme.syntax.type_);
 }
+
+#[test]
+fn gutter_uses_deletion_background_for_deletions() {
+    let input = "diff --git a/x.txt b/x.txt\n--- a/x.txt\n+++ b/x.txt\n@@ -1,1 +1,1 @@\n-only_old\n+only_new\n";
+    let output = render(input, &RenderOptions::default());
+    let del_bg = format!(
+        "48;2;{};{};{}",
+        (DARK.del_bg >> 16) & 0xff,
+        (DARK.del_bg >> 8) & 0xff,
+        DARK.del_bg & 0xff
+    );
+    let add_bg = format!(
+        "48;2;{};{};{}",
+        (DARK.add_bg >> 16) & 0xff,
+        (DARK.add_bg >> 8) & 0xff,
+        DARK.add_bg & 0xff
+    );
+    let plain = strip_ansi(&output);
+    let only_old_line = plain
+        .split('\n')
+        .find(|l| l.contains("-only_old"))
+        .expect("deletion line");
+    let only_new_line = plain
+        .split('\n')
+        .find(|l| l.contains("+only_new"))
+        .expect("addition line");
+    // The deletion line's gutter region should have the del_bg applied.
+    let raw_only_old = output
+        .split('\n')
+        .find(|l| l.contains("only_old"))
+        .unwrap_or_else(|| panic!("no deletion line in raw output"));
+    assert!(
+        raw_only_old.contains(&del_bg),
+        "expected deletion bg {} in gutter, line={}",
+        del_bg,
+        raw_only_old
+    );
+    // The addition line's gutter region should have the add_bg applied.
+    let raw_only_new = output
+        .split('\n')
+        .find(|l| l.contains("only_new"))
+        .unwrap_or_else(|| panic!("no addition line in raw output"));
+    assert!(
+        raw_only_new.contains(&add_bg),
+        "expected addition bg {} in gutter, line={}",
+        add_bg,
+        raw_only_new
+    );
+    // Sanity: make sure we did pick the right lines.
+    assert!(only_old_line.starts_with('▌'));
+    assert!(only_new_line.starts_with('▌'));
+    let _ = (only_old_line, only_new_line);
+}
