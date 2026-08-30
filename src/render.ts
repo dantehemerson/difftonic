@@ -28,12 +28,35 @@ export interface RenderOptions {
   theme?: Theme;
   showLineNumbers?: boolean;
   syntaxTheme?: string;
-  /** Padded width of the file title bar. Defaults to a fixed 80 columns. */
+  /** Padded width of the file title bar. Defaults to terminal width or 80. */
   titleWidth?: number;
 }
 
 const DEFAULT_TITLE_WIDTH = 80;
+const MIN_TITLE_WIDTH = 12;
 const SEPARATOR_CHAR = "─";
+/** Generic file icon from Nerd Fonts (nf-seti-default, codepoint U+F15B). */
+const FILE_ICON = "\u{F15B}";
+const ICON_TEXT_GAP = " ";
+
+/** Detect the terminal width to use for title bars and separators. */
+export function detectTitleWidth(): number {
+  const stdout = process.stdout as { columns?: number };
+  if (typeof stdout.columns === "number" && stdout.columns > 0) {
+    return stdout.columns;
+  }
+  const env = process.env.COLUMNS;
+  if (env) {
+    const parsed = parseInt(env, 10);
+    if (!Number.isNaN(parsed) && parsed > 0) return parsed;
+  }
+  return DEFAULT_TITLE_WIDTH;
+}
+
+function resolveTitleWidth(option: number | undefined): number {
+  if (option !== undefined && option >= MIN_TITLE_WIDTH) return option;
+  return detectTitleWidth();
+}
 
 export async function renderPatch(
   patches: ParsedPatch[],
@@ -41,14 +64,14 @@ export async function renderPatch(
 ): Promise<string> {
   const theme = options.theme ?? DEFAULT_THEME;
   const syntaxTheme = options.syntaxTheme ?? DEFAULT_SYNTAX_THEME;
-  const titleWidth = options.titleWidth ?? DEFAULT_TITLE_WIDTH;
+  const titleWidth = resolveTitleWidth(options.titleWidth);
   const out: string[] = [];
   let first = true;
 
   for (const patch of patches) {
     for (const file of patch.files) {
       if (!first) {
-        out.push(renderFileSeparator(theme));
+        out.push(renderFileSeparator(theme, titleWidth));
         out.push("");
       }
       first = false;
@@ -68,11 +91,13 @@ async function renderFile(
 ): Promise<void> {
   const lang = resolveLang(file);
   const syntaxTheme = options.syntaxTheme ?? DEFAULT_SYNTAX_THEME;
-  const titleWidth = options.titleWidth ?? DEFAULT_TITLE_WIDTH;
+  const titleWidth = resolveTitleWidth(options.titleWidth);
   const body = buildFileLines(file);
   const showLineNumbers = options.showLineNumbers !== false;
 
-  out.push(renderFileTitle(file, theme, titleWidth));
+  for (const line of renderFileTitle(file, theme, titleWidth)) {
+    out.push(line);
+  }
 
   for (const rl of body) {
     if (rl.kind === "hunk-header") {
@@ -175,8 +200,8 @@ function renderNoNewline(line: RenderLine, theme: Theme): string {
   });
 }
 
-function renderFileSeparator(theme: Theme): string {
-  return paint(SEPARATOR_CHAR.repeat(DEFAULT_TITLE_WIDTH), {
+function renderFileSeparator(theme: Theme, width: number): string {
+  return paint(SEPARATOR_CHAR.repeat(width), {
     fg: theme.fileSeparatorFg,
     dim: true,
   });
@@ -216,7 +241,7 @@ function fileStats(file: FileDiffMetadata): FileStats {
   return { additions, deletions, isNew, isDeleted, isRenamed, stateLabel };
 }
 
-function renderFileTitle(file: FileDiffMetadata, theme: Theme, width: number): string {
+function renderFileTitle(file: FileDiffMetadata, theme: Theme, width: number): string[] {
   const stats = fileStats(file);
   const displayPath = file.prevName && file.prevName !== file.name
     ? `${file.prevName} → ${file.name}`
@@ -224,22 +249,30 @@ function renderFileTitle(file: FileDiffMetadata, theme: Theme, width: number): s
 
   const statsText = formatStats(stats, theme);
   const titleText = displayPath;
+  const titlePrefix = `${FILE_ICON}${ICON_TEXT_GAP}`;
 
-  const padding = Math.max(1, width - charWidth(titleText) - charWidth(statsText) - 2);
-  const line = ` ${titleText}${" ".repeat(padding)}${statsText} `;
+  const sidePad = 1;
+  const middle = Math.max(1, width - charWidth(titlePrefix) - charWidth(titleText) - charWidth(statsText) - sidePad * 2);
+  const trailing = sidePad;
 
-  let out = "\x1b[0m";
-  out += openStyle({ bg: theme.fileHeaderBg, fg: theme.fileHeaderFg, bold: true });
-  out += " ";
-  out += titleText;
-  out += openStyle({ bg: theme.fileHeaderBg, fg: theme.fileHeaderFg, bold: true });
-  out += " ".repeat(padding);
-  out += renderStats(stats, theme);
-  out += openStyle({ bg: theme.fileHeaderBg, fg: theme.fileHeaderFg, bold: true });
-  out += " ";
-  out += "\x1b[0m";
+  const titleLine = (() => {
+    let out = "\x1b[0m";
+    out += openStyle({ bg: theme.fileHeaderBg, fg: theme.fileHeaderFg, bold: true });
+    out += " ".repeat(sidePad);
+    out += FILE_ICON;
+    out += ICON_TEXT_GAP;
+    out += titleText;
+    out += openStyle({ bg: theme.fileHeaderBg, fg: theme.fileHeaderFg, bold: true });
+    out += " ".repeat(middle);
+    out += renderStats(stats, theme);
+    out += openStyle({ bg: theme.fileHeaderBg });
+    out += " ".repeat(trailing);
+    out += "\x1b[0m";
+    return out;
+  })();
 
-  return out;
+  const bgLine = "\x1b[0m" + openStyle({ bg: theme.fileHeaderBg }) + " ".repeat(width);
+  return [bgLine, titleLine, bgLine];
 }
 
 function formatStats(stats: FileStats, _theme: Theme): string {
@@ -295,7 +328,7 @@ function charWidth(s: string): number {
 
 interface PaintStyle {
   bg?: number;
-  fg: number;
+  fg?: number;
   bold?: boolean;
   dim?: boolean;
 }
@@ -315,9 +348,10 @@ function closeStyle(): string {
 function composeSgr(style: PaintStyle): string {
   const parts: string[] = [];
   if (style.bg !== undefined) parts.push(bg(style.bg));
-  parts.push(fg(style.fg));
+  if (style.fg !== undefined) parts.push(fg(style.fg));
   if (style.bold) parts.push("1");
   if (style.dim) parts.push("2");
+  if (parts.length === 0) return "";
   return "\x1b[" + parts.join(";") + "m";
 }
 
@@ -327,12 +361,11 @@ function renderCodeLine(
   theme: Theme,
   showLineNumbers: boolean,
 ): string {
-  let out = "";
+  let out = "\x1b[0m";
+  out += renderRail(line, theme);
 
   if (showLineNumbers) {
     out += renderGutter(line, theme);
-  } else {
-    out += "\x1b[0m";
   }
 
   if (line.kind === "addition") {
@@ -347,6 +380,20 @@ function renderCodeLine(
   }
 
   return out;
+}
+
+const RAIL = "▌";
+
+function renderRail(line: RenderLine, theme: Theme): string {
+  let railStyle: { bg?: number; fg: number; bold?: boolean };
+  if (line.kind === "addition") {
+    railStyle = { fg: theme.additionAccent, bold: true };
+  } else if (line.kind === "deletion") {
+    railStyle = { fg: theme.deletionAccent, bold: true };
+  } else {
+    railStyle = { fg: theme.railContextFg };
+  }
+  return openStyle(railStyle) + RAIL;
 }
 
 function renderGutter(line: RenderLine, theme: Theme): string {

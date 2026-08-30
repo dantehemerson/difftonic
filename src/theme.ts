@@ -8,6 +8,7 @@ export interface Theme {
   fileHeaderFg: number;
   fileHeaderMutedFg: number;
   fileSeparatorFg: number;
+  railContextFg: number;
   oldLineFg: number;
   newLineFg: number;
   additionBg: number;
@@ -26,6 +27,7 @@ export const DARK_THEME: Theme = {
   fileHeaderFg: 0xe6edf3,
   fileHeaderMutedFg: 0x8b949e,
   fileSeparatorFg: 0x4a4a4a,
+  railContextFg: 0x4a4a4a,
   oldLineFg: 0x6a6a6a,
   newLineFg: 0x6a6a6a,
   additionBg: 0x0e3017,
@@ -44,6 +46,7 @@ export const LIGHT_THEME: Theme = {
   fileHeaderFg: 0x0d1117,
   fileHeaderMutedFg: 0x57606a,
   fileSeparatorFg: 0xb0b0b0,
+  railContextFg: 0xb0b0b0,
   oldLineFg: 0x9a9a9a,
   newLineFg: 0x9a9a9a,
   additionBg: 0xdbefdc,

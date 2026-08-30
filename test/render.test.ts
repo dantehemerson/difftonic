@@ -158,7 +158,7 @@ index abc..def 100644
 `);
     const out = await renderPatch(parsePatch(text));
     const lines = out.split("\n");
-    const titleLine = lines[0]!;
+    const titleLine = lines[1]!;
     const plain = stripAnsi(titleLine);
     expect(plain).toContain("x.ts");
     expect(plain).toContain("+1");
@@ -177,11 +177,11 @@ index 0000000..abc1234
 +world
 `);
     const out = await renderPatch(parsePatch(text));
-    const firstLine = stripAnsi(out.split("\n")[0]!);
-    expect(firstLine).toContain("new");
-    expect(firstLine).toContain("new.txt");
-    expect(firstLine).toContain("+2");
-    expect(firstLine).toContain("-0");
+    const titleLine = stripAnsi(out.split("\n")[1]!);
+    expect(titleLine).toContain("new");
+    expect(titleLine).toContain("new.txt");
+    expect(titleLine).toContain("+2");
+    expect(titleLine).toContain("-0");
   });
 
   test("title for deleted files shows 'deleted' state label", async () => {
@@ -195,10 +195,10 @@ index abc1234..0000000
 -cruel world
 `);
     const out = await renderPatch(parsePatch(text));
-    const firstLine = stripAnsi(out.split("\n")[0]!);
-    expect(firstLine).toContain("deleted");
-    expect(firstLine).toContain("old.txt");
-    expect(firstLine).toContain("-2");
+    const titleLine = stripAnsi(out.split("\n")[1]!);
+    expect(titleLine).toContain("deleted");
+    expect(titleLine).toContain("old.txt");
+    expect(titleLine).toContain("-2");
   });
 
   test("title for renamed files shows 'renamed' state label", async () => {
@@ -208,10 +208,10 @@ rename from old.txt
 rename to new.txt
 `);
     const out = await renderPatch(parsePatch(text));
-    const firstLine = stripAnsi(out.split("\n")[0]!);
-    expect(firstLine).toContain("renamed");
-    expect(firstLine).toContain("old.txt");
-    expect(firstLine).toContain("new.txt");
+    const titleLine = stripAnsi(out.split("\n")[1]!);
+    expect(titleLine).toContain("renamed");
+    expect(titleLine).toContain("old.txt");
+    expect(titleLine).toContain("new.txt");
   });
 
   test("separator appears between files but not after the last one", async () => {
@@ -238,6 +238,102 @@ index 333..444 100644
     expect(separatorCount).toBeGreaterThanOrEqual(1);
     const trailingLines = out.trimEnd().split("\n").slice(-3);
     expect(trailingLines.some((l) => /^─+$/.test(stripAnsi(l)))).toBe(false);
+  });
+
+  test("renders a colored rail to the left of every code line", async () => {
+    const text = patch(`diff --git a/x.ts b/x.ts
+index abc..def 100644
+--- a/x.ts
++++ b/x.ts
+@@ -1,3 +1,3 @@
+ keep
+-old
++new
+ end
+`);
+    const out = await renderPatch(parsePatch(text));
+    const plain = stripAnsi(out);
+    const codeLines = plain
+      .split("\n")
+      .filter((l) => l.includes("│"));
+    expect(codeLines.length).toBeGreaterThan(0);
+    for (const line of codeLines) {
+      expect(line.startsWith("▌")).toBe(true);
+    }
+    expect(out).toMatch(/\x1b\[38;2;\d+;\d+;\d+(;\d)?m▌/);
+  });
+
+  test("rail uses addition accent for additions and deletion accent for deletions", async () => {
+    const text = patch(`diff --git a/x.ts b/x.ts
+index abc..def 100644
+--- a/x.ts
++++ b/x.ts
+@@ -1,1 +1,1 @@
+-old
++new
+`);
+    const out = await renderPatch(parsePatch(text));
+    const additionLine = stripAnsi(out).split("\n").find((l) => l.includes("+new"));
+    const deletionLine = stripAnsi(out).split("\n").find((l) => l.includes("-old"));
+    expect(additionLine).toBeTruthy();
+    expect(deletionLine).toBeTruthy();
+    expect(additionLine!.startsWith("▌")).toBe(true);
+    expect(deletionLine!.startsWith("▌")).toBe(true);
+    expect(out).toMatch(/\x1b\[38;2;\d+;\d+;\d+;1m▌/);
+  });
+
+  test("title block is three lines: empty bg, title, empty bg", async () => {
+    const text = patch(`diff --git a/x.ts b/x.ts
+index abc..def 100644
+--- a/x.ts
++++ b/x.ts
+@@ -1,1 +1,1 @@
+-old
++new
+`);
+    const out = await renderPatch(parsePatch(text), { titleWidth: 40 });
+    const lines = out.split("\n");
+    const titleBg = `48;2;43;49;56`;
+    const padLineSgr = new RegExp(`\x1b\\[0m(?:\x1b\\[0m)*\x1b\\[${titleBg}m {40}`);
+    expect(lines[0]).toMatch(padLineSgr);
+    expect(lines[2]).toMatch(padLineSgr);
+    const titlePlain = stripAnsi(lines[1]!);
+    expect(titlePlain.length).toBe(40);
+    expect(titlePlain).toContain("x.ts");
+  });
+
+  test("title fills the configured width", async () => {
+    const text = patch(`diff --git a/x.ts b/x.ts
+index abc..def 100644
+--- a/x.ts
++++ b/x.ts
+@@ -1,1 +1,1 @@
+-old
++new
+`);
+    const out = await renderPatch(parsePatch(text), { titleWidth: 50 });
+    const lines = out.split("\n");
+    expect(stripAnsi(lines[1]!).length).toBe(50);
+    expect(stripAnsi(lines[0]!).length).toBe(50);
+    expect(stripAnsi(lines[2]!).length).toBe(50);
+  });
+
+  test("title includes a Nerd Font file icon before the filename", async () => {
+    const text = patch(`diff --git a/x.ts b/x.ts
+index abc..def 100644
+--- a/x.ts
++++ b/x.ts
+@@ -1,1 +1,1 @@
+-old
++new
+`);
+    const out = await renderPatch(parsePatch(text), { titleWidth: 50 });
+    const titlePlain = stripAnsi(out.split("\n")[1]!);
+    expect(titlePlain).toContain("\u{F15B}");
+    const iconIndex = titlePlain.indexOf("\u{F15B}");
+    const xIndex = titlePlain.indexOf("x.ts");
+    expect(iconIndex).toBeGreaterThanOrEqual(0);
+    expect(xIndex).toBeGreaterThan(iconIndex);
   });
 
   test("emits ANSI color codes", async () => {
