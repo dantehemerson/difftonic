@@ -336,6 +336,166 @@ index abc..def 100644
     expect(xIndex).toBeGreaterThan(iconIndex);
   });
 
+  test("line numbers advance across context blocks after a change", async () => {
+    const lines = [
+      "diff --git a/about.mdx b/about.mdx",
+      "index 1234567..abcdef0 100644",
+      "--- a/about.mdx",
+      "+++ b/about.mdx",
+      "@@ -15,6 +15,12 @@ Hi there",
+      " line A",
+      " line B",
+      " line C",
+      "+asldkjj mejor que nunca jajaja pero es es o jaja",
+      "+",
+      "+",
+      "+",
+      "+",
+      "+",
+      " line D",
+      " line E",
+      " line F",
+    ];
+    const text = lines.join("\n") + "\n";
+    const out = await renderPatch(parsePatch(sanitize(text)), { titleWidth: 50 });
+    const plainLines = stripAnsi(out).split("\n");
+    const lineD = plainLines.find((l) => l.includes(" line D"));
+    const lineF = plainLines.find((l) => l.includes(" line F"));
+    expect(lineD).toBeTruthy();
+    expect(lineF).toBeTruthy();
+    const dMatch = lineD!.match(/\b(\d+)\s+(\d+)│/);
+    const fMatch = lineF!.match(/\b(\d+)\s+(\d+)│/);
+    expect(dMatch).not.toBeNull();
+    expect(fMatch).not.toBeNull();
+    expect(parseInt(dMatch![1]!, 10)).toBe(18);
+    expect(parseInt(dMatch![2]!, 10)).toBe(24);
+    expect(parseInt(fMatch![1]!, 10)).toBe(20);
+    expect(parseInt(fMatch![2]!, 10)).toBe(26);
+  });
+
+  test("line numbers advance across multiple change blocks in one hunk", async () => {
+    const lines = [
+      "diff --git a/x.ts b/x.ts",
+      "index 111..222 100644",
+      "--- a/x.ts",
+      "+++ b/x.ts",
+      "@@ -1,5 +1,5 @@ header",
+      " keep A",
+      "-del1",
+      "+add1",
+      " keep B",
+      "-del2",
+      "+add2",
+      " keep C",
+    ];
+    const text = lines.join("\n") + "\n";
+    const out = await renderPatch(parsePatch(sanitize(text)), { titleWidth: 50 });
+    const plainLines = stripAnsi(out).split("\n");
+
+    function gutterOf(marker: string): { old?: number; new?: number } {
+      const line = plainLines.find((l) => l.includes(`│ ${marker}`));
+      if (!line) return {};
+      const m = line.match(/(\d*)\s*(\d*)│/);
+      if (!m) return {};
+      return {
+        old: m[1] ? parseInt(m[1], 10) : undefined,
+        new: m[2] ? parseInt(m[2], 10) : undefined,
+      };
+    }
+
+    expect(gutterOf(" keep A")).toEqual({ old: 1, new: 1 });
+    expect(gutterOf("-del1")).toEqual({ old: 2, new: undefined });
+    expect(gutterOf("+add1")).toEqual({ old: undefined, new: 2 });
+    expect(gutterOf(" keep B")).toEqual({ old: 3, new: 3 });
+    expect(gutterOf("-del2")).toEqual({ old: 4, new: undefined });
+    expect(gutterOf("+add2")).toEqual({ old: undefined, new: 4 });
+    expect(gutterOf(" keep C")).toEqual({ old: 5, new: 5 });
+  });
+
+  test("line numbers advance correctly when a hunk contains no change block", async () => {
+    const lines = [
+      "diff --git a/x.ts b/x.ts",
+      "index 111..222 100644",
+      "--- a/x.ts",
+      "+++ b/x.ts",
+      "@@ -10,4 +10,4 @@ context",
+      " line A",
+      " line B",
+      " line C",
+      " line D",
+    ];
+    const text = lines.join("\n") + "\n";
+    const out = await renderPatch(parsePatch(sanitize(text)), { titleWidth: 50 });
+    const plainLines = stripAnsi(out).split("\n");
+    const lineA = plainLines.find((l) => l.includes(" line A"));
+    const lineD = plainLines.find((l) => l.includes(" line D"));
+    expect(lineA).toMatch(/10\s+10│/);
+    expect(lineD).toMatch(/13\s+13│/);
+  });
+
+  test("line numbers advance across multiple hunks in the same file", async () => {
+    const lines = [
+      "diff --git a/x.ts b/x.ts",
+      "index 111..222 100644",
+      "--- a/x.ts",
+      "+++ b/x.ts",
+      "@@ -1,3 +1,3 @@",
+      " keep1",
+      " keep2",
+      "-old",
+      "+new",
+      "@@ -10,2 +10,2 @@",
+      " keep10",
+      " keep10b",
+    ];
+    const text = lines.join("\n") + "\n";
+    const out = await renderPatch(parsePatch(sanitize(text)), { titleWidth: 50 });
+    const plainLines = stripAnsi(out).split("\n");
+
+    function gutterOf(marker: string): { old?: number; new?: number } {
+      const line = plainLines.find((l) => l.includes(`│ ${marker}`));
+      if (!line) return {};
+      const m = line.match(/(\d*)\s*(\d*)│/);
+      if (!m) return {};
+      return {
+        old: m[1] ? parseInt(m[1], 10) : undefined,
+        new: m[2] ? parseInt(m[2], 10) : undefined,
+      };
+    }
+
+    expect(gutterOf(" keep1")).toEqual({ old: 1, new: 1 });
+    expect(gutterOf(" keep2")).toEqual({ old: 2, new: 2 });
+    expect(gutterOf("-old")).toEqual({ old: 3, new: undefined });
+    expect(gutterOf("+new")).toEqual({ old: undefined, new: 3 });
+    expect(gutterOf(" keep10")).toEqual({ old: 10, new: 10 });
+    expect(gutterOf(" keep10b")).toEqual({ old: 11, new: 11 });
+  });
+
+  test("deletion-only hunk numbers correctly across blocks", async () => {
+    const lines = [
+      "diff --git a/x.ts b/x.ts",
+      "index 111..222 100644",
+      "--- a/x.ts",
+      "+++ b/x.ts",
+      "@@ -1,5 +1,3 @@ header",
+      " keep",
+      "-del1",
+      "-del2",
+      " keep2",
+      " keep3",
+    ];
+    const text = lines.join("\n") + "\n";
+    const out = await renderPatch(parsePatch(sanitize(text)), { titleWidth: 50 });
+    const plainLines = stripAnsi(out).split("\n");
+    const keep = plainLines.find((l) => / keep$/.test(stripAnsi(l).split("│")[1] ?? ""));
+    const keep2 = plainLines.find((l) => l.includes(" keep2"));
+    const keep3 = plainLines.find((l) => l.includes(" keep3"));
+    expect(keep).toBeTruthy();
+    expect(keep).toMatch(/1\s+1│/);
+    expect(keep2).toMatch(/4\s+2│/);
+    expect(keep3).toMatch(/5\s+3│/);
+  });
+
   test("emits ANSI color codes", async () => {
     const text = patch(`diff --git a/x.ts b/x.ts
 index abc..def 100644

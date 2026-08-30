@@ -135,37 +135,41 @@ function buildFileLines(file: FileDiffMetadata): RenderLine[] {
           (hunk.hunkContext ? ` ${hunk.hunkContext}` : ""),
     });
 
+    let oldLine = hunk.deletionStart;
+    let newLine = hunk.additionStart;
+
     for (const block of hunk.hunkContent) {
       if (block.type === "context") {
-        const start = block.deletionLineIndex;
         for (let i = 0; i < block.lines; i++) {
-          const text = file.deletionLines[start + i] ?? "";
+          const text = file.deletionLines[block.deletionLineIndex + i] ?? "";
           out.push({
             kind: "context",
             text,
-            oldLine: hunk.deletionStart + i,
-            newLine: hunk.additionStart + i,
+            oldLine: oldLine + i,
+            newLine: newLine + i,
           });
         }
+        oldLine += block.lines;
+        newLine += block.lines;
       } else {
-        const delStart = block.deletionLineIndex;
-        const addStart = block.additionLineIndex;
         for (let i = 0; i < block.deletions; i++) {
-          const text = file.deletionLines[delStart + i] ?? "";
+          const text = file.deletionLines[block.deletionLineIndex + i] ?? "";
           out.push({
             kind: "deletion",
             text,
-            oldLine: hunk.deletionStart + i,
+            oldLine: oldLine + i,
           });
         }
+        oldLine += block.deletions;
         for (let i = 0; i < block.additions; i++) {
-          const text = file.additionLines[addStart + i] ?? "";
+          const text = file.additionLines[block.additionLineIndex + i] ?? "";
           out.push({
             kind: "addition",
             text,
-            newLine: hunk.additionStart + i,
+            newLine: newLine + i,
           });
         }
+        newLine += block.additions;
       }
     }
 
