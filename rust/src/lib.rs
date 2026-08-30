@@ -857,11 +857,7 @@ pub fn render_line(
     ));
 
     if tokens.is_empty() {
-        if matches!(line.kind, Kind::Addition | Kind::Deletion) {
-            out.push_str(&paint(&format!("{}\n", line.text), bg, Some(fg), false, false));
-        } else {
-            out.push_str(&paint(&line.text, bg, Some(fg), false, false));
-        }
+        out.push_str(&paint(&line.text, bg, Some(fg), false, false));
     } else {
         for tok in tokens {
             out.push_str(&paint(&tok.text, bg, Some(tok.color), false, false));
