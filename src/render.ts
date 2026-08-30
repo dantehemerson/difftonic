@@ -204,27 +204,63 @@ function resolveLang(file: FileDiffMetadata): SupportedLanguages {
 }
 
 function renderMetaLine(line: RenderLine, theme: Theme): string {
-  return sgr(bg(theme.metaBg), fg(theme.metaFg), "2") + line.text + RESET;
+  return paint(line.text, {
+    bg: theme.metaBg,
+    fg: theme.metaFg,
+    dim: true,
+  });
 }
 
 function renderHunkHeader(line: RenderLine, theme: Theme): string {
-  return sgr(bg(theme.hunkBg), fg(theme.hunkFg), "1") + line.text + RESET;
+  return paint(line.text, {
+    bg: theme.hunkBg,
+    fg: theme.hunkFg,
+    bold: true,
+  });
 }
 
 function renderNoNewline(line: RenderLine, theme: Theme): string {
-  return sgr(fg(theme.metaFg), "2") + line.text + RESET;
+  return paint(line.text, {
+    fg: theme.metaFg,
+    dim: true,
+  });
 }
 
 function renderSeparator(theme: Theme): string {
   const width = 60;
-  return sgr(bg(theme.metaBg), fg(theme.metaFg), "2") + "─".repeat(width) + RESET;
+  return paint("─".repeat(width), {
+    bg: theme.metaBg,
+    fg: theme.metaFg,
+    dim: true,
+  });
 }
 
-interface ZoneStyle {
-  bg?: string;
-  fg: string;
+interface PaintStyle {
+  bg?: number;
+  fg: number;
   bold?: boolean;
   dim?: boolean;
+}
+
+function paint(text: string, style: PaintStyle): string {
+  return openStyle(style) + text + closeStyle();
+}
+
+function openStyle(style: PaintStyle): string {
+  return "\x1b[0m" + composeSgr(style);
+}
+
+function closeStyle(): string {
+  return "";
+}
+
+function composeSgr(style: PaintStyle): string {
+  const parts: string[] = [];
+  if (style.bg !== undefined) parts.push(bg(style.bg));
+  parts.push(fg(style.fg));
+  if (style.bold) parts.push("1");
+  if (style.dim) parts.push("2");
+  return "\x1b[" + parts.join(";") + "m";
 }
 
 function renderCodeLine(
@@ -233,29 +269,25 @@ function renderCodeLine(
   theme: Theme,
   showLineNumbers: boolean,
 ): string {
-  const gutter = showLineNumbers ? renderGutter(line, theme) : "";
+  let out = "";
 
-  let marker: string;
-  let markerZone: ZoneStyle;
-  let codeBg: string | undefined;
-
-  if (line.kind === "addition") {
-    marker = "+";
-    markerZone = { bg: bg(theme.additionBg), fg: fg(theme.additionAccent), bold: true };
-    codeBg = bg(theme.additionBg);
-  } else if (line.kind === "deletion") {
-    marker = "-";
-    markerZone = { bg: bg(theme.deletionBg), fg: fg(theme.deletionAccent), bold: true };
-    codeBg = bg(theme.deletionBg);
+  if (showLineNumbers) {
+    out += renderGutter(line, theme);
   } else {
-    marker = " ";
-    markerZone = { fg: fg(theme.metaFg), dim: true };
+    out += "\x1b[0m";
   }
 
-  let out = gutter;
-  out += sgrFromZone(markerZone) + marker;
-  out += emitTokenText(tokens, { bg: codeBg });
-  out += RESET;
+  if (line.kind === "addition") {
+    out += openStyle({ bg: theme.additionBg, fg: theme.additionAccent, bold: true }) + "+";
+    out += renderTokens(tokens, theme.additionBg);
+  } else if (line.kind === "deletion") {
+    out += openStyle({ bg: theme.deletionBg, fg: theme.deletionAccent, bold: true }) + "-";
+    out += renderTokens(tokens, theme.deletionBg);
+  } else {
+    out += openStyle({ fg: theme.metaFg, dim: true }) + " ";
+    out += renderTokens(tokens, undefined);
+  }
+
   return out;
 }
 
@@ -266,38 +298,45 @@ function renderGutter(line: RenderLine, theme: Theme): string {
   const oldActive = line.kind === "deletion";
   const newActive = line.kind === "addition";
 
-  const gutterBg = bg(theme.metaBg);
-  const oldFg = oldActive ? fg(theme.deletionAccent) : fg(theme.metaFg);
-  const newFg = newActive ? fg(theme.additionAccent) : fg(theme.metaFg);
-
   let out = "";
-  out += sgr(gutterBg, oldFg, oldActive ? "1" : "2") + oldNum;
+  out += openStyle({
+    bg: theme.metaBg,
+    fg: oldActive ? theme.deletionAccent : theme.metaFg,
+    bold: oldActive,
+    dim: !oldActive,
+  }) + oldNum;
   out += " ";
-  out += sgr(gutterBg, newFg, newActive ? "1" : "2") + newNum;
-  out += sgr(gutterBg, fg(theme.metaFg), "2") + "│";
+  out += openStyle({
+    bg: theme.metaBg,
+    fg: newActive ? theme.additionAccent : theme.metaFg,
+    bold: newActive,
+    dim: !newActive,
+  }) + newNum;
+  out += openStyle({
+    bg: theme.metaBg,
+    fg: theme.metaFg,
+    dim: true,
+  }) + "│";
   out += " ";
   return out;
 }
 
-function emitTokenText(tokens: ThemedToken[], base: { bg?: string }): string {
+function renderTokens(tokens: ThemedToken[], bgHex: number | undefined): string {
   let out = "";
   let lastFg: number | undefined;
-  const baseSgr = base.bg ? sgr(base.bg) : "";
-  out += baseSgr;
   for (const t of tokens) {
     const fgColor = parseHex(t.color);
-    if (fgColor !== undefined && fgColor !== lastFg) {
-      out += sgr(fg(fgColor));
+    if (fgColor !== lastFg) {
+      out += openStyle({
+        bg: bgHex,
+        fg: fgColor ?? 0xcccccc,
+      });
       lastFg = fgColor;
     }
     out += t.content;
   }
+  if (tokens.length > 0) out += "\x1b[0m";
   return out;
-}
-
-function sgrFromZone(z: ZoneStyle): string {
-  const parts: (string | undefined)[] = [z.bg, z.fg, z.bold ? "1" : undefined, z.dim ? "2" : undefined];
-  return sgr(...parts.filter((p): p is string => p !== undefined));
 }
 
 function parseHex(input: string | undefined): number | undefined {
@@ -324,11 +363,3 @@ function fg(hex: number): string {
   const b = hex & 0xff;
   return `38;2;${r};${g};${b}`;
 }
-
-function sgr(...codes: (string | undefined)[]): string {
-  const filtered = codes.filter((c): c is string => c !== undefined);
-  if (filtered.length === 0) return "";
-  return `\x1b[${filtered.join(";")}m`;
-}
-
-const RESET = "\x1b[0m";

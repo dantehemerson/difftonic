@@ -207,10 +207,21 @@ index abc..def 100644
  end
 `);
     const out = await renderPatch(parsePatch(text));
-    const match = out.match(/\x1b\[[0-9;]*m \x1b\[([0-9;]*)m/);
-    expect(match).toBeTruthy();
-    const codes = parseSgrCodes(match![1]!);
-    expect(codes.has("2")).toBe(false);
+    const lines = out.split("\n");
+    const plainLines = lines.map(stripAnsi);
+    const contextLineIndices = plainLines
+      .map((l, i) => (/│\s+(keep me|end)/.test(l) ? i : -1))
+      .filter((i) => i >= 0);
+    expect(contextLineIndices.length).toBeGreaterThan(0);
+    for (const idx of contextLineIndices) {
+      const line = lines[idx]!;
+      const sgrs = [...line.matchAll(/\x1b\[0m(?:\x1b\[0m)*\x1b\[([0-9;]*)m/g)].map((m) => m[1]!);
+      const codeSgrs = sgrs.filter((sgr) => {
+        const codes = parseSgrCodes(sgr);
+        return !codes.has("2") && !codes.has("1");
+      });
+      expect(codeSgrs.length).toBeGreaterThan(0);
+    }
     expect(stripAnsi(out)).toContain("keep me");
   });
 
@@ -224,14 +235,17 @@ index abc..def 100644
 +new
 `);
     const out = await renderPatch(parsePatch(text));
-    const match = out.match(/\x1b\[[0-9;]*m\+\x1b\[([0-9;]*)m/);
+    const match = out.match(/\x1b\[0m\x1b\[([0-9;]*)m\+\x1b\[0m\x1b\[([0-9;]*)m/);
     expect(match).toBeTruthy();
-    const codeBaseSgr = match![1]!;
-    expect(codeBaseSgr).toMatch(/^48;2;\d+;\d+;\d+$/);
+    const markerSgr = match![1]!;
+    const codeBaseSgr = match![2]!;
+    const markerCodes = parseSgrCodes(markerSgr);
+    expect(markerCodes.has("1")).toBe(true);
+    expect(markerCodes.has("48;2")).toBe(true);
+    expect(codeBaseSgr).toMatch(/^48;2;\d+;\d+;\d+;38;2;\d+;\d+;\d+$/);
     const codes = parseSgrCodes(codeBaseSgr);
     expect(codes.has("1")).toBe(false);
     expect(codes.has("2")).toBe(false);
-    expect(codes.has("38")).toBe(false);
     expect(codes.has("48;2")).toBe(true);
     expect(stripAnsi(out)).toContain("new");
   });
