@@ -195,6 +195,54 @@ index abc..def 100644
     expect(plusCount).toBeGreaterThanOrEqual(3);
   });
 
+  test("uses the configured syntax theme for token colors", async () => {
+    const text = patch(`diff --git a/x.ts b/x.ts
+index abc..def 100644
+--- a/x.ts
++++ b/x.ts
+@@ -1,1 +1,1 @@
+-old
++new
+`);
+    const defaultOut = await renderPatch(parsePatch(text), { syntaxTheme: "github-dark-default" });
+    const altOut = await renderPatch(parsePatch(text), { syntaxTheme: "dracula" });
+    expect(stripAnsi(defaultOut)).toBe(stripAnsi(altOut));
+    expect(defaultOut).not.toBe(altOut);
+  });
+
+  test("uses the configured diff theme for backgrounds", async () => {
+    const text = patch(`diff --git a/x.ts b/x.ts
+index abc..def 100644
+--- a/x.ts
++++ b/x.ts
+@@ -1,1 +1,1 @@
+-old
++new
+`);
+    const darkOut = await renderPatch(parsePatch(text), { theme: undefined });
+    const lightOut = await renderPatch(parsePatch(text), {
+      syntaxTheme: "github-light-default",
+    });
+    expect(stripAnsi(darkOut)).toBe(stripAnsi(lightOut));
+    expect(darkOut).not.toBe(lightOut);
+  });
+
+  test("hides line numbers when requested", async () => {
+    const text = patch(`diff --git a/x.ts b/x.ts
+index abc..def 100644
+--- a/x.ts
++++ b/x.ts
+@@ -1,1 +1,1 @@
+-old
++new
+`);
+    const withNumbers = await renderPatch(parsePatch(text), { showLineNumbers: true });
+    const withoutNumbers = await renderPatch(parsePatch(text), { showLineNumbers: false });
+    expect(withNumbers).toContain("│");
+    expect(withoutNumbers).not.toContain("│");
+    expect(stripAnsi(withoutNumbers)).toContain("new");
+  });
+
   test("context code is not dimmed", async () => {
     const text = patch(`diff --git a/x.ts b/x.ts
 index abc..def 100644

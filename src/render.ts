@@ -5,7 +5,7 @@ import type {
   ThemedToken,
 } from "@pierre/diffs";
 import { setLanguageOverride } from "@pierre/diffs";
-import { tokenizeLine } from "./highlight";
+import { DEFAULT_SYNTAX_THEME, tokenizeLine } from "./highlight";
 import { languageForPath } from "./language";
 import { DEFAULT_THEME, type Theme } from "./theme";
 
@@ -28,6 +28,7 @@ interface RenderLine {
 export interface RenderOptions {
   theme?: Theme;
   showLineNumbers?: boolean;
+  syntaxTheme?: string;
 }
 
 export async function renderPatch(
@@ -35,6 +36,7 @@ export async function renderPatch(
   options: RenderOptions = {},
 ): Promise<string> {
   const theme = options.theme ?? DEFAULT_THEME;
+  const syntaxTheme = options.syntaxTheme ?? DEFAULT_SYNTAX_THEME;
   const out: string[] = [];
   let first = true;
 
@@ -42,7 +44,7 @@ export async function renderPatch(
     for (const file of patch.files) {
       if (!first) out.push("");
       first = false;
-      await renderFile(file, theme, out, options);
+      await renderFile(file, theme, out, { ...options, syntaxTheme });
     }
   }
 
@@ -57,6 +59,7 @@ async function renderFile(
   options: RenderOptions,
 ): Promise<void> {
   const lang = resolveLang(file);
+  const syntaxTheme = options.syntaxTheme ?? DEFAULT_SYNTAX_THEME;
   const header = fileHeader(file);
   const body = buildFileLines(file);
   const showLineNumbers = options.showLineNumbers !== false;
@@ -85,7 +88,7 @@ async function renderFile(
       tokens = [{ content: rl.text, color: "#cccccc" } as ThemedToken];
     } else {
       try {
-        tokens = await tokenizeLine(rl.text, lang);
+        tokens = await tokenizeLine(rl.text, lang, syntaxTheme);
       } catch {
         tokens = [{ content: rl.text, color: "#cccccc" } as ThemedToken];
       }

@@ -34,6 +34,41 @@ stdin (git diff text)
 - **Shiki** (pulled in by Pierre) handles tokenization.
 - **No OpenTUI, no React, no worker pool** — straight ANSI output.
 
+## Usage
+
+```
+diffview [options] < patch
+```
+
+### Options
+
+| Flag                    | Description                                                                                  | Default                |
+| ----------------------- | -------------------------------------------------------------------------------------------- | ---------------------- |
+| `--syntax-theme <id>`   | Shiki theme id for code highlighting. Any bundled Shiki theme works.                         | `github-dark-default`  |
+| `--theme <name>`        | Diff color theme: `dark`, `light`, or `auto` (picks dark/light based on the syntax theme).   | `auto`                 |
+| `--no-line-numbers`     | Hide line number gutter.                                                                     | (line numbers shown)   |
+| `-h`, `--help`          | Show usage.                                                                                  |                        |
+| `-v`, `--version`       | Print version.                                                                               |                        |
+
+### Examples
+
+```sh
+git diff --no-color | diffview
+
+git diff --no-color | diffview --syntax-theme dracula
+
+git diff --no-color | diffview --syntax-theme monokai --theme dark
+
+git diff --no-color | diffview --syntax-theme github-light-default
+
+git diff --no-color | diffview --no-line-numbers
+```
+
+Some well-known Shiki theme ids: `github-dark-default`, `github-light-default`,
+`monokai`, `dracula`, `nord`, `one-dark-pro`, `one-light`, `catppuccin-mocha`,
+`catppuccin-latte`, `solarized-dark`, `solarized-light`, `ayu-dark`,
+`vitesse-dark`, `vitesse-light`, `rose-pine`, `tokyo-night`.
+
 ## Use with LazyGit
 
 Add a `bin` directory to your `PATH`, then point LazyGit at the script:
@@ -46,7 +81,7 @@ git:
     - name: diffview
       type: stdinFilter
       colorArg: never
-      command: /absolute/path/to/diffview/bin/diffview
+      command: /absolute/path/to/diff_for_lazygit/bin/diffview
 ```
 
 LazyGit must produce uncolored diffs (`colorArg: never`) so the renderer can
@@ -56,11 +91,28 @@ The included `bin/diffview` shell wrapper invokes Bun with `src/cli.ts`. If you
 prefer, you can symlink it into your `PATH`:
 
 ```sh
-ln -s /absolute/path/to/diffview/bin/diffview ~/.local/bin/diffview
+ln -s /absolute/path/to/diff_for_lazygit/bin/diffview ~/.local/bin/diffview
 ```
 
 LazyGit runs inside its TUI and waits for the renderer process to exit, so the
 command must not start a pager of its own.
+
+To pass theme options through LazyGit, extend the `command:` field:
+
+```yaml
+git:
+  diffRenderers:
+    - name: diffview-dark
+      type: stdinFilter
+      colorArg: never
+      command: /absolute/path/to/diff_for_lazygit/bin/diffview --syntax-theme dracula
+    - name: diffview-light
+      type: stdinFilter
+      colorArg: never
+      command: /absolute/path/to/diff_for_lazygit/bin/diffview --syntax-theme github-light-default --theme auto
+```
+
+Use the `|` keybinding inside LazyGit to cycle between renderers.
 
 ## Local development
 
@@ -74,4 +126,10 @@ To smoke-test against a real repo:
 
 ```sh
 git diff --no-color | bun run src/cli.ts
+```
+
+Try a different theme:
+
+```sh
+git diff --no-color | bun run src/cli.ts --syntax-theme dracula --theme dark
 ```

@@ -12,20 +12,6 @@ export interface Theme {
   deletionAccent: number;
 }
 
-export const DEFAULT_THEME: Theme = {
-  name: "default",
-  metaBg: 0x2a2d34,
-  metaFg: 0x9ca0a6,
-  hunkBg: 0x0e3a59,
-  hunkFg: 0xe6f3ff,
-  oldLineFg: 0x6f6f6f,
-  newLineFg: 0x6f6f6f,
-  additionBg: 0x0f3a18,
-  deletionBg: 0x3f0d10,
-  additionAccent: 0x7ad27a,
-  deletionAccent: 0xe89090,
-};
-
 export const DARK_THEME: Theme = {
   name: "dark",
   metaBg: 0x1f2228,
@@ -53,3 +39,45 @@ export const LIGHT_THEME: Theme = {
   additionAccent: 0x2c7a2c,
   deletionAccent: 0xa93232,
 };
+
+export const DEFAULT_THEME = DARK_THEME;
+
+/**
+ * Names of well-known light Shiki themes. Used to pick a matching diff theme
+ * when `--theme auto` is requested. The list is intentionally small; users
+ * picking an unknown light theme should pass `--theme light` explicitly.
+ */
+const LIGHT_SYNTAX_THEME_NAMES = new Set([
+  "github-light",
+  "github-light-default",
+  "github-light-high-contrast",
+  "light-plus",
+  "solarized-light",
+  "min-light",
+  "one-light",
+  "rose-pine-dawn",
+  "slack-ochin",
+  "snazzy-light",
+  "vitesse-light",
+  "material-theme-lighter",
+  "catppuccin-latte",
+  "nord-light",
+  "ayu-light",
+  "kleur-light",
+]);
+
+/** Heuristic guess at whether a Shiki theme id belongs to a light scheme. */
+export function isLightSyntaxTheme(themeId: string): boolean {
+  return LIGHT_SYNTAX_THEME_NAMES.has(themeId);
+}
+
+/** Resolve a `--theme` value into a concrete `Theme`. */
+export function resolveDiffTheme(
+  requested: "dark" | "light" | "auto" | undefined,
+  syntaxTheme: string,
+): Theme {
+  const value = requested ?? "auto";
+  if (value === "dark") return DARK_THEME;
+  if (value === "light") return LIGHT_THEME;
+  return isLightSyntaxTheme(syntaxTheme) ? LIGHT_THEME : DARK_THEME;
+}
