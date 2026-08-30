@@ -1,6 +1,7 @@
 use clap::Parser;
 use diffview::{render, RenderOptions};
 use std::io::{self, Read};
+use terminal_size::{terminal_size, Width};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -17,6 +18,23 @@ struct Args {
     no_line_numbers: bool,
     #[arg(long, help = "Highlight context lines too (default: changed lines only)")]
     full: bool,
+    #[arg(long, short = 'w', help = "Width for title bar and layout")]
+    width: Option<usize>,
+}
+
+fn tty_columns() -> Option<usize> {
+    use std::fs::File;
+    use std::os::unix::io::AsRawFd;
+
+    let file = File::open("/dev/tty").ok()?;
+    let fd = file.as_raw_fd();
+    let mut winsize: libc::winsize = unsafe { std::mem::zeroed() };
+    let result = unsafe { libc::ioctl(fd, libc::TIOCGWINSZ, &mut winsize) };
+    if result == 0 && winsize.ws_col > 0 {
+        Some(winsize.ws_col as usize)
+    } else {
+        None
+    }
 }
 
 fn main() {
@@ -26,10 +44,17 @@ fn main() {
     if input.is_empty() {
         return;
     }
-    let width: usize = std::env::var("COLUMNS")
-        .ok()
-        .and_then(|v| v.parse().ok())
-        .filter(|v: &usize| *v > 0)
+    let width: usize = args
+        .width
+        .filter(|v| *v > 0)
+        .or_else(|| {
+            std::env::var("COLUMNS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .filter(|v: &usize| *v > 0)
+        })
+        .or_else(|| terminal_size().map(|(Width(w), _)| w as usize))
+        .or_else(tty_columns)
         .unwrap_or(diffview::DEFAULT_WIDTH);
     let options = RenderOptions {
         syntax_theme: args.syntax_theme,
