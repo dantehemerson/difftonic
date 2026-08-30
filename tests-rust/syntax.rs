@@ -182,3 +182,70 @@ fn gutter_uses_deletion_background_for_deletions() {
     assert!(only_new_line.starts_with('▌'));
     let _ = (only_old_line, only_new_line);
 }
+
+#[test]
+fn full_file_hides_hunk_header() {
+    // Single hunk at line 1 covering the whole file: header is redundant.
+    let input = "diff --git a/x.ts b/x.ts\n--- a/x.ts\n+++ b/x.ts\n@@ -1,3 +1,4 @@\n a\n b\n+new\n c\n";
+    let out = render(input, &RenderOptions::default());
+    assert!(
+        !out.contains("@@"),
+        "hunk header should be suppressed for full-file diffs"
+    );
+}
+
+#[test]
+fn multi_hunk_keeps_hunk_headers() {
+    let input = "diff --git a/x.ts b/x.ts\n--- a/x.ts\n+++ b/x.ts\n@@ -1,3 +1,4 @@\n a\n b\n+inserted\n c\n@@ -10,3 +11,4 @@\n x\n y\n+z\n w\n";
+    let out = render(input, &RenderOptions::default());
+    assert!(out.contains("@@ -1,3 +1,4 @@"));
+    assert!(out.contains("@@ -10,3 +11,4 @@"));
+}
+
+#[test]
+fn single_hunk_not_at_line_one_keeps_header() {
+    let input = "diff --git a/x.ts b/x.ts\n--- a/x.ts\n+++ b/x.ts\n@@ -50,3 +50,4 @@\n a\n b\n+inserted\n c\n";
+    let out = render(input, &RenderOptions::default());
+    assert!(out.contains("@@ -50,3 +50,4 @@"));
+}
+
+#[test]
+fn hunk_header_hidden_for_context_only_hunk() {
+    let input = "diff --git a/x.ts b/x.ts\n--- a/x.ts\n+++ b/x.ts\n@@ -1,11 +1,11 @@\n a\n b\n c\n d\n e\n f\n g\n h\n i\n j\n k\n";
+    let out = render(input, &RenderOptions::default());
+    assert!(
+        !out.contains("@@"),
+        "context-only hunk header should be hidden, got: {}",
+        out
+    );
+}
+
+#[test]
+fn hunk_header_kept_for_hunk_with_changes() {
+    let input = "diff --git a/x.ts b/x.ts\n--- a/x.ts\n+++ b/x.ts\n@@ -50,3 +50,4 @@\n a\n b\n+inserted\n c\n";
+    let out = render(input, &RenderOptions::default());
+    assert!(out.contains("@@ -50,3 +50,4 @@"));
+}
+
+#[test]
+fn mixed_diff_only_hides_empty_hunks() {
+    // A multi-hunk diff where the first hunk has only context and the
+    // second has actual changes: only the first header should be hidden.
+    let input = "diff --git a/x.ts b/x.ts\n--- a/x.ts\n+++ b/x.ts\n@@ -1,5 +1,5 @@\n a\n b\n c\n d\n e\n@@ -20,3 +20,4 @@\n x\n y\n+inserted\n w\n";
+    let out = render(input, &RenderOptions::default());
+    assert!(!out.contains("@@ -1,5 +1,5 @@"));
+    assert!(out.contains("@@ -20,3 +20,4 @@"));
+}
+
+#[test]
+fn hunk_header_hidden_for_single_line_context_only_hunk() {
+    // Mirrors the user's exact case from LazyGit: a hunk whose header
+    // claims 11 lines on each side but only one context line is shown.
+    let input = "diff --git a/x.ts b/x.ts\n--- a/x.ts\n+++ b/x.ts\n@@ -1,11 +1,11 @@\n type ParseOptions = {\n";
+    let out = render(input, &RenderOptions::default());
+    assert!(
+        !out.contains("@@"),
+        "context-only hunk header should be hidden, got:\n{}",
+        out
+    );
+}

@@ -2,6 +2,7 @@ use std::path::Path;
 use tree_sitter_highlight::{HighlightConfiguration, HighlightEvent, Highlighter};
 
 mod highlight;
+mod icons;
 
 pub const RESET: &str = "\x1b[0m";
 pub const FILE_ICON: &str = "\u{f15b}";
@@ -617,7 +618,7 @@ pub fn render_file(file: &FileDiff, out: &mut String, theme: Theme, options: &Re
 
     let bg_line = paint(&" ".repeat(width), Some(theme.header_bg), None, false, false);
 
-    let prefix_len = char_count(&format!("{} {}", FILE_ICON, display));
+    let prefix_len = char_count(&format!("{} {}", icons::file_icon(&file.name), display));
 
     let mut stats_parts: Vec<(String, u32, bool)> = Vec::new();
     if let Some(l) = label {
@@ -642,7 +643,7 @@ pub fn render_file(file: &FileDiff, out: &mut String, theme: Theme, options: &Re
         false,
     ));
     title.push_str(&paint(
-        &format!("{} {}", FILE_ICON, display),
+        &format!("{} {}", icons::file_icon(&file.name), display),
         Some(theme.header_bg),
         Some(theme.header_fg),
         true,
@@ -698,15 +699,17 @@ pub fn render_file(file: &FileDiff, out: &mut String, theme: Theme, options: &Re
     }
 
     for hunk in &file.hunks {
-        out.push_str(&paint(
-            &hunk.header,
-            Some(theme.hunk_bg),
-            Some(theme.hunk_fg),
-            true,
-            false,
-        ));
-        out.push('\n');
-        out.push('\n');
+        if !should_hide_hunk_header(file, hunk) {
+            out.push_str(&paint(
+                &hunk.header,
+                Some(theme.hunk_bg),
+                Some(theme.hunk_fg),
+                true,
+                false,
+            ));
+            out.push('\n');
+            out.push('\n');
+        }
         let mut old = hunk.old_start;
         let mut new = hunk.new_start;
         for line in &hunk.lines {
@@ -881,4 +884,79 @@ pub fn render_line(
         out.push_str(RESET);
     }
     out
+}
+
+/// Decide whether to emit the `@@ -A,B +C,D @@` hunk header. The
+/// header is suppressed when:
+///
+/// 1. The hunk contains no actual changes (only context lines), or
+/// 2. The file is shown as a single hunk starting at line 1 in both
+///    versions (the entire file is being displayed, so the header is
+///    redundant noise next to the title bar).
+fn should_hide_hunk_header(file: &FileDiff, hunk: &Hunk) -> bool {
+    let has_change = hunk
+        .lines
+        .iter()
+        .any(|l| matches!(l.kind, Kind::Addition | Kind::Deletion));
+    if !has_change {
+        return true;
+    }
+    if file.hunks.len() != 1 {
+        return false;
+    }
+    if hunk.old_start != 1 || hunk.new_start != 1 {
+        return false;
+    }
+    let old_count = hunk
+        .lines
+        .iter()
+        .filter(|l| matches!(l.kind, Kind::Context | Kind::Deletion))
+        .count();
+    let new_count = hunk
+        .lines
+        .iter()
+        .filter(|l| matches!(l.kind, Kind::Context | Kind::Addition))
+        .count();
+    let (declared_old_start, declared_old_count, declared_new_start, declared_new_count) =
+        parse_hunk_specs(&hunk.header);
+    old_count == declared_old_count
+        && new_count == declared_new_count
+        && declared_old_start == Some(hunk.old_start)
+        && declared_new_start == Some(hunk.new_start)
+}
+
+fn parse_hunk_specs(header: &str) -> (
+    Option<usize>,
+    usize,
+    Option<usize>,
+    usize,
+) {
+    let parts: Vec<&str> = header.split_whitespace().collect();
+    let old = parts.get(1).unwrap_or(&"");
+    let new = parts.get(2).unwrap_or(&"");
+    let (old_start, old_count) = parse_old_spec(old);
+    let (new_start, new_count) = parse_new_spec(new);
+    (Some(old_start), old_count, Some(new_start), new_count)
+}
+
+fn parse_old_spec(spec: &str) -> (usize, usize) {
+    let trimmed = spec.trim_start_matches('-');
+    let mut split = trimmed.splitn(2, ',');
+    let start = split.next().unwrap_or("1").parse().unwrap_or(1);
+    let count = split
+        .next()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(1);
+    (start, count)
+}
+
+fn parse_new_spec(spec: &str) -> (usize, usize) {
+    let trimmed = spec.trim_start_matches('+');
+    let mut split = trimmed.splitn(2, ',');
+    let start = split.next().unwrap_or("1").parse().unwrap_or(1);
+    let count = split
+        .next()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(1);
+    (start, count)
 }

@@ -68,7 +68,8 @@ fn parse_multiple_files() {
 
 #[test]
 fn render_emits_title_hunk_header_and_code_lines() {
-    let input = "diff --git a/x.ts b/x.ts\nindex abc..def 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1,2 +1,2 @@\n-const a = 1;\n+const a = 2;\n const b = 3;\n";
+    // Use a multi-hunk diff so hunk headers are preserved.
+    let input = "diff --git a/x.ts b/x.ts\nindex abc..def 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1,2 +1,2 @@\n-const a = 1;\n+const a = 2;\n@@ -10,2 +10,2 @@\n const b = 3;\n-const c = 4;\n+const c = 5;\n";
     let out = render(input, &opts());
     let plain = strip_ansi(&out);
     assert!(plain.contains("x.ts"));
@@ -131,8 +132,17 @@ fn render_separator_between_files_but_not_after_last() {
     let plain = strip_ansi(&out);
     let separator_count = plain.matches("─").filter(|_| true).count();
     assert!(separator_count >= 30);
-    let trailing = out.trim_end().split('\n').rev().take(3).collect::<Vec<_>>();
-    assert!(trailing.iter().any(|l| l.trim().is_empty()));
+    // The separator character must appear between the two file sections.
+    let sections: Vec<&str> = plain.split("─").collect();
+    assert!(sections.len() >= 2);
+    // The last line of the output is a code line, not a separator.
+    let last_meaningful = plain
+        .trim_end()
+        .lines()
+        .rev()
+        .find(|l| !l.trim().is_empty())
+        .unwrap();
+    assert!(!last_meaningful.starts_with('─'));
 }
 
 #[test]
@@ -197,15 +207,45 @@ fn render_title_fills_configured_width() {
 
 #[test]
 fn render_title_has_nerd_font_icon() {
+    // .ts files get the TypeScript codicon (U+E628) before the filename.
     let input = "diff --git a/x.ts b/x.ts\nindex abc..def 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1,1 +1,1 @@\n-old\n+new\n";
     let mut o = opts();
     o.width = 50;
     let out = render(input, &o);
     let title_plain = strip_ansi(out.split('\n').nth(1).unwrap());
-    assert!(title_plain.contains('\u{F15B}'));
-    let icon_idx = title_plain.find('\u{F15B}').unwrap();
+    assert!(title_plain.contains('\u{e628}'));
+    let icon_idx = title_plain.find('\u{e628}').unwrap();
     let x_idx = title_plain.find("x.ts").unwrap();
     assert!(icon_idx < x_idx);
+}
+
+#[test]
+fn render_title_uses_per_file_icon() {
+    // Different extensions pick different nerd-font codepoints.
+    let o = || {
+        let mut r = opts();
+        r.width = 50;
+        r
+    };
+    let ts = render(
+        "diff --git a/x.ts b/x.ts\n--- a/x.ts\n+++ b/x.ts\n@@ -1,1 +1,1 @@\n-a\n+b\n",
+        &o(),
+    );
+    let rs = render(
+        "diff --git a/x.rs b/x.rs\n--- a/x.rs\n+++ b/x.rs\n@@ -1,1 +1,1 @@\n-a\n+b\n",
+        &o(),
+    );
+    let py = render(
+        "diff --git a/x.py b/x.py\n--- a/x.py\n+++ b/x.py\n@@ -1,1 +1,1 @@\n-a\n+b\n",
+        &o(),
+    );
+    let ts_plain = strip_ansi(ts.split('\n').nth(1).unwrap());
+    let rs_plain = strip_ansi(rs.split('\n').nth(1).unwrap());
+    let py_plain = strip_ansi(py.split('\n').nth(1).unwrap());
+    assert!(ts_plain.contains('\u{e628}')); // TS
+    assert!(rs_plain.contains('\u{e7a8}')); // Rust
+    assert!(py_plain.contains('\u{e73c}')); // Python
+    assert_ne!(ts_plain, rs_plain);
 }
 
 #[test]
