@@ -40,7 +40,39 @@ stdin (git diff text)
 diffview [options] < patch
 ```
 
-### Options
+### Output Structure
+
+Each file in the diff gets its own section with two parts:
+
+1. **Title bar** — a one-line header with the file's path, change state
+   (`new` / `deleted` / `renamed`), and additions/deletions counts. Rendered
+   with the diff theme's `fileHeaderBg` so the file boundary is obvious at
+   a glance.
+2. **Hunks** — the syntax-highlighted, gutter-numbered code body.
+
+Files are separated by a `─` rule. The rule is omitted after the last file
+so trailing whitespace doesn't accumulate.
+
+The raw `diff --git` / `index` / `---` / `+++` metadata is intentionally
+omitted — the title bar already carries the path and change state, and the
+hunks carry the rest.
+
+```
+ example.ts                                                       deleted +0 -5
+@@ -1,5 +0,0 @@
+
+   1     │ -export function add(a: number, b: number): number {
+   2     │ -  return a + b;
+   3     │ -}
+   4     │ -
+   5     │ -// TODO: handle negative numbers
+────────────────────────────────────────────────────────────────────────────────
+
+ main.go                                                                  +5 -0
+@@ -5,4 +5,9 @@ import "fmt"
+```
+
+
 
 | Flag                    | Description                                                                                  | Default                |
 | ----------------------- | -------------------------------------------------------------------------------------------- | ---------------------- |

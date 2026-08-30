@@ -4,6 +4,10 @@ export interface Theme {
   metaFg: number;
   hunkBg: number;
   hunkFg: number;
+  fileHeaderBg: number;
+  fileHeaderFg: number;
+  fileHeaderMutedFg: number;
+  fileSeparatorFg: number;
   oldLineFg: number;
   newLineFg: number;
   additionBg: number;
@@ -18,6 +22,10 @@ export const DARK_THEME: Theme = {
   metaFg: 0x9da0a6,
   hunkBg: 0x0d2c45,
   hunkFg: 0xdceefb,
+  fileHeaderBg: 0x2b3138,
+  fileHeaderFg: 0xe6edf3,
+  fileHeaderMutedFg: 0x8b949e,
+  fileSeparatorFg: 0x4a4a4a,
   oldLineFg: 0x6a6a6a,
   newLineFg: 0x6a6a6a,
   additionBg: 0x0e3017,
@@ -32,6 +40,10 @@ export const LIGHT_THEME: Theme = {
   metaFg: 0x555555,
   hunkBg: 0xb6dcf5,
   hunkFg: 0x073a5e,
+  fileHeaderBg: 0xd9e1e8,
+  fileHeaderFg: 0x0d1117,
+  fileHeaderMutedFg: 0x57606a,
+  fileSeparatorFg: 0xb0b0b0,
   oldLineFg: 0x9a9a9a,
   newLineFg: 0x9a9a9a,
   additionBg: 0xdbefdc,

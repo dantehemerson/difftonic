@@ -10,7 +10,6 @@ import { languageForPath } from "./language";
 import { DEFAULT_THEME, type Theme } from "./theme";
 
 type RenderLineKind =
-  | "meta"
   | "hunk-header"
   | "context"
   | "addition"
@@ -29,7 +28,12 @@ export interface RenderOptions {
   theme?: Theme;
   showLineNumbers?: boolean;
   syntaxTheme?: string;
+  /** Padded width of the file title bar. Defaults to a fixed 80 columns. */
+  titleWidth?: number;
 }
+
+const DEFAULT_TITLE_WIDTH = 80;
+const SEPARATOR_CHAR = "─";
 
 export async function renderPatch(
   patches: ParsedPatch[],
@@ -37,14 +41,18 @@ export async function renderPatch(
 ): Promise<string> {
   const theme = options.theme ?? DEFAULT_THEME;
   const syntaxTheme = options.syntaxTheme ?? DEFAULT_SYNTAX_THEME;
+  const titleWidth = options.titleWidth ?? DEFAULT_TITLE_WIDTH;
   const out: string[] = [];
   let first = true;
 
   for (const patch of patches) {
     for (const file of patch.files) {
-      if (!first) out.push("");
+      if (!first) {
+        out.push(renderFileSeparator(theme));
+        out.push("");
+      }
       first = false;
-      await renderFile(file, theme, out, { ...options, syntaxTheme });
+      await renderFile(file, theme, out, { ...options, syntaxTheme, titleWidth });
     }
   }
 
@@ -60,22 +68,15 @@ async function renderFile(
 ): Promise<void> {
   const lang = resolveLang(file);
   const syntaxTheme = options.syntaxTheme ?? DEFAULT_SYNTAX_THEME;
-  const header = fileHeader(file);
+  const titleWidth = options.titleWidth ?? DEFAULT_TITLE_WIDTH;
   const body = buildFileLines(file);
   const showLineNumbers = options.showLineNumbers !== false;
 
-  for (const line of header) {
-    out.push(renderMetaLine(line, theme));
-  }
-  out.push(renderSeparator(theme));
+  out.push(renderFileTitle(file, theme, titleWidth));
 
   for (const rl of body) {
     if (rl.kind === "hunk-header") {
       out.push(renderHunkHeader(rl, theme));
-      continue;
-    }
-    if (rl.kind === "meta") {
-      out.push(renderMetaLine(rl, theme));
       continue;
     }
     if (rl.kind === "no-newline") {
@@ -96,53 +97,6 @@ async function renderFile(
 
     out.push(renderCodeLine(rl, tokens, theme, showLineNumbers));
   }
-}
-
-function fileHeader(file: FileDiffMetadata): RenderLine[] {
-  const lines: RenderLine[] = [];
-  lines.push({
-    kind: "meta",
-    text: `diff --git a/${file.prevName ?? file.name} b/${file.name}`,
-    highlight: false,
-  });
-
-  if (file.newObjectId && file.prevObjectId) {
-    lines.push({
-      kind: "meta",
-      text: `index ${file.prevObjectId}..${file.newObjectId}${file.mode ? ` ${file.mode}` : ""}`,
-      highlight: false,
-    });
-  } else if (file.newObjectId) {
-    lines.push({
-      kind: "meta",
-      text: `index ${file.newObjectId}${file.mode ? `..${file.mode}` : ""}`,
-      highlight: false,
-    });
-  }
-
-  if (file.type === "new") {
-    lines.push({
-      kind: "meta",
-      text: "new file mode " + (file.mode ?? "100644"),
-      highlight: false,
-    });
-  } else if (file.type === "deleted") {
-    lines.push({
-      kind: "meta",
-      text: "deleted file mode " + (file.mode ?? "100644"),
-      highlight: false,
-    });
-  } else if (file.prevMode && file.prevMode !== file.mode && file.mode) {
-    lines.push({ kind: "meta", text: `old mode ${file.prevMode}`, highlight: false });
-    lines.push({ kind: "meta", text: `new mode ${file.mode}`, highlight: false });
-  }
-
-  const oldPath = file.prevName ?? file.name;
-  const oldLabel = file.type === "new" ? "/dev/null" : `a/${oldPath}`;
-  const newLabel = file.type === "deleted" ? "/dev/null" : `b/${file.name}`;
-  lines.push({ kind: "meta", text: `--- ${oldLabel}`, highlight: false });
-  lines.push({ kind: "meta", text: `+++ ${newLabel}`, highlight: false });
-  return lines;
 }
 
 function buildFileLines(file: FileDiffMetadata): RenderLine[] {
@@ -206,14 +160,6 @@ function resolveLang(file: FileDiffMetadata): SupportedLanguages {
   return lang;
 }
 
-function renderMetaLine(line: RenderLine, theme: Theme): string {
-  return paint(line.text, {
-    bg: theme.metaBg,
-    fg: theme.metaFg,
-    dim: true,
-  });
-}
-
 function renderHunkHeader(line: RenderLine, theme: Theme): string {
   return paint(line.text, {
     bg: theme.hunkBg,
@@ -229,13 +175,122 @@ function renderNoNewline(line: RenderLine, theme: Theme): string {
   });
 }
 
-function renderSeparator(theme: Theme): string {
-  const width = 60;
-  return paint("─".repeat(width), {
-    bg: theme.metaBg,
-    fg: theme.metaFg,
+function renderFileSeparator(theme: Theme): string {
+  return paint(SEPARATOR_CHAR.repeat(DEFAULT_TITLE_WIDTH), {
+    fg: theme.fileSeparatorFg,
     dim: true,
   });
+}
+
+interface FileStats {
+  additions: number;
+  deletions: number;
+  isNew: boolean;
+  isDeleted: boolean;
+  isRenamed: boolean;
+  stateLabel: string | null;
+}
+
+function fileStats(file: FileDiffMetadata): FileStats {
+  let additions = 0;
+  let deletions = 0;
+  for (const hunk of file.hunks) {
+    for (const block of hunk.hunkContent) {
+      if (block.type === "change") {
+        additions += block.additions;
+        deletions += block.deletions;
+      }
+    }
+  }
+
+  const isNew = file.type === "new";
+  const isDeleted = file.type === "deleted";
+  const isRenamed =
+    file.type === "rename-pure" || file.type === "rename-changed";
+
+  let stateLabel: string | null = null;
+  if (isNew) stateLabel = "new";
+  else if (isDeleted) stateLabel = "deleted";
+  else if (isRenamed) stateLabel = "renamed";
+
+  return { additions, deletions, isNew, isDeleted, isRenamed, stateLabel };
+}
+
+function renderFileTitle(file: FileDiffMetadata, theme: Theme, width: number): string {
+  const stats = fileStats(file);
+  const displayPath = file.prevName && file.prevName !== file.name
+    ? `${file.prevName} → ${file.name}`
+    : file.name;
+
+  const statsText = formatStats(stats, theme);
+  const titleText = displayPath;
+
+  const padding = Math.max(1, width - charWidth(titleText) - charWidth(statsText) - 2);
+  const line = ` ${titleText}${" ".repeat(padding)}${statsText} `;
+
+  let out = "\x1b[0m";
+  out += openStyle({ bg: theme.fileHeaderBg, fg: theme.fileHeaderFg, bold: true });
+  out += " ";
+  out += titleText;
+  out += openStyle({ bg: theme.fileHeaderBg, fg: theme.fileHeaderFg, bold: true });
+  out += " ".repeat(padding);
+  out += renderStats(stats, theme);
+  out += openStyle({ bg: theme.fileHeaderBg, fg: theme.fileHeaderFg, bold: true });
+  out += " ";
+  out += "\x1b[0m";
+
+  return out;
+}
+
+function formatStats(stats: FileStats, _theme: Theme): string {
+  const parts: string[] = [];
+  if (stats.isNew) parts.push("new");
+  if (stats.isDeleted) parts.push("deleted");
+  if (stats.isRenamed) parts.push("renamed");
+  parts.push(`+${stats.additions}`);
+  parts.push(`-${stats.deletions}`);
+  return parts.join(" ");
+}
+
+function renderStats(stats: FileStats, theme: Theme): string {
+  const tokens: Array<{ kind: "label" | "add" | "del"; text: string }> = [];
+  const labels: string[] = [];
+  if (stats.isNew) labels.push("new");
+  if (stats.isDeleted) labels.push("deleted");
+  if (stats.isRenamed) labels.push("renamed");
+  if (labels.length > 0) tokens.push({ kind: "label", text: labels.join(" ") });
+  tokens.push({ kind: "add", text: `+${stats.additions}` });
+  tokens.push({ kind: "del", text: `-${stats.deletions}` });
+
+  let out = "";
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i]!;
+    if (i > 0) {
+      out += openStyle({ bg: theme.fileHeaderBg, fg: theme.fileHeaderMutedFg });
+      out += " ";
+    }
+    if (t.kind === "add") {
+      out += openStyle({ bg: theme.fileHeaderBg, fg: theme.additionAccent, bold: true }) + t.text;
+    } else if (t.kind === "del") {
+      out += openStyle({ bg: theme.fileHeaderBg, fg: theme.deletionAccent, bold: true }) + t.text;
+    } else {
+      out += openStyle({ bg: theme.fileHeaderBg, fg: theme.fileHeaderMutedFg }) + t.text;
+    }
+  }
+  return out;
+}
+
+function charWidth(s: string): number {
+  let w = 0;
+  for (let i = 0; i < s.length; i++) {
+    const code = s.charCodeAt(i);
+    if (code === 0x1b) {
+      while (i + 1 < s.length && s.charCodeAt(i + 1) !== 109) i++;
+      continue;
+    }
+    w++;
+  }
+  return w;
 }
 
 interface PaintStyle {

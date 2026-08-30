@@ -124,7 +124,7 @@ index 333..444 100644
 });
 
 describe("renderPatch", () => {
-  test("emits file header, hunk header, and lines", async () => {
+  test("emits title, hunk header, and code lines", async () => {
     const text = patch(`diff --git a/x.ts b/x.ts
 index abc..def 100644
 --- a/x.ts
@@ -135,12 +135,109 @@ index abc..def 100644
  const b = 3;
 `);
     const out = await renderPatch(parsePatch(text));
-    expect(out).toContain("diff --git a/x.ts b/x.ts");
-    expect(out).toContain("--- a/x.ts");
-    expect(out).toContain("+++ b/x.ts");
+    expect(stripAnsi(out)).toContain("x.ts");
     expect(out).toContain("@@ -1,2 +1,2 @@");
     expect(stripAnsi(out)).toContain("const a = 1;");
     expect(stripAnsi(out)).toContain("const a = 2;");
+    expect(out).not.toContain("diff --git");
+    expect(out).not.toContain("--- a/");
+    expect(out).not.toContain("+++ b/");
+    expect(out).not.toContain("index ");
+  });
+
+  test("emits Hunk-style title with filename and stats", async () => {
+    const text = patch(`diff --git a/x.ts b/x.ts
+index abc..def 100644
+--- a/x.ts
++++ b/x.ts
+@@ -1,3 +1,3 @@
+ keep
+-old
++new
+ end
+`);
+    const out = await renderPatch(parsePatch(text));
+    const lines = out.split("\n");
+    const titleLine = lines[0]!;
+    const plain = stripAnsi(titleLine);
+    expect(plain).toContain("x.ts");
+    expect(plain).toContain("+1");
+    expect(plain).toContain("-1");
+    expect(out).toContain("\x1b[48;2;");
+  });
+
+  test("title for new files shows 'new' state label", async () => {
+    const text = patch(`diff --git a/new.txt b/new.txt
+new file mode 100644
+index 0000000..abc1234
+--- /dev/null
++++ b/new.txt
+@@ -0,0 +1,2 @@
++hello
++world
+`);
+    const out = await renderPatch(parsePatch(text));
+    const firstLine = stripAnsi(out.split("\n")[0]!);
+    expect(firstLine).toContain("new");
+    expect(firstLine).toContain("new.txt");
+    expect(firstLine).toContain("+2");
+    expect(firstLine).toContain("-0");
+  });
+
+  test("title for deleted files shows 'deleted' state label", async () => {
+    const text = patch(`diff --git a/old.txt b/old.txt
+deleted file mode 100644
+index abc1234..0000000
+--- a/old.txt
++++ /dev/null
+@@ -1,2 +0,0 @@
+-bye
+-cruel world
+`);
+    const out = await renderPatch(parsePatch(text));
+    const firstLine = stripAnsi(out.split("\n")[0]!);
+    expect(firstLine).toContain("deleted");
+    expect(firstLine).toContain("old.txt");
+    expect(firstLine).toContain("-2");
+  });
+
+  test("title for renamed files shows 'renamed' state label", async () => {
+    const text = patch(`diff --git a/old.txt b/new.txt
+similarity index 100%
+rename from old.txt
+rename to new.txt
+`);
+    const out = await renderPatch(parsePatch(text));
+    const firstLine = stripAnsi(out.split("\n")[0]!);
+    expect(firstLine).toContain("renamed");
+    expect(firstLine).toContain("old.txt");
+    expect(firstLine).toContain("new.txt");
+  });
+
+  test("separator appears between files but not after the last one", async () => {
+    const text = patch(`diff --git a/a.ts b/a.ts
+index 111..222 100644
+--- a/a.ts
++++ b/a.ts
+@@ -1,1 +1,1 @@
+-a
++b
+diff --git a/b.ts b/b.ts
+index 333..444 100644
+--- a/b.ts
++++ b/b.ts
+@@ -1,1 +1,1 @@
+-c
++d
+`);
+    const out = await renderPatch(parsePatch(text));
+    const plain = stripAnsi(out);
+    expect(plain).toContain("a.ts");
+    expect(plain).toContain("b.ts");
+    const separatorCount = (plain.match(/─{30,}/g) ?? []).length;
+    expect(separatorCount).toBeGreaterThanOrEqual(1);
+    const trailingLines = out.trimEnd().split("\n").slice(-3);
+    expect(trailingLines.some((l) => /^─+$/.test(stripAnsi(l)))).toBe(false);
   });
 
   test("emits ANSI color codes", async () => {
