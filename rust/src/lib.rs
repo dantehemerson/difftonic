@@ -618,7 +618,8 @@ pub fn render_file(file: &FileDiff, out: &mut String, theme: Theme, options: &Re
 
     let bg_line = paint(&" ".repeat(width), Some(theme.header_bg), None, false, false);
 
-    let prefix_len = char_count(&format!("{} {}", icons::file_icon(&file.name), display));
+    let prefix_len =
+        char_count(&format!("{} {}", icons::file_icon(&file.name), display));
 
     let mut stats_parts: Vec<(String, u32, bool)> = Vec::new();
     if let Some(l) = label {
@@ -642,8 +643,17 @@ pub fn render_file(file: &FileDiff, out: &mut String, theme: Theme, options: &Re
         false,
         false,
     ));
+    // Icon is painted with its per-file color (Seti UI palette) while
+    // the filename keeps the theme's header foreground.
     title.push_str(&paint(
-        &format!("{} {}", icons::file_icon(&file.name), display),
+        icons::file_icon(&file.name),
+        Some(theme.header_bg),
+        Some(icons::file_color(&file.name)),
+        false,
+        false,
+    ));
+    title.push_str(&paint(
+        &format!(" {}", display),
         Some(theme.header_bg),
         Some(theme.header_fg),
         true,

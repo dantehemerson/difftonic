@@ -242,9 +242,9 @@ fn render_title_uses_per_file_icon() {
     let ts_plain = strip_ansi(ts.split('\n').nth(1).unwrap());
     let rs_plain = strip_ansi(rs.split('\n').nth(1).unwrap());
     let py_plain = strip_ansi(py.split('\n').nth(1).unwrap());
-    assert!(ts_plain.contains('\u{e628}')); // TS
-    assert!(rs_plain.contains('\u{e7a8}')); // Rust
-    assert!(py_plain.contains('\u{e73c}')); // Python
+    assert!(ts_plain.contains('\u{e628}')); // TS (nvim-web-devicons v3)
+    assert!(rs_plain.contains('\u{e68b}')); // Rust (nvim-web-devicons v3)
+    assert!(py_plain.contains('\u{e606}')); // Python (nvim-web-devicons v3)
     assert_ne!(ts_plain, rs_plain);
 }
 
