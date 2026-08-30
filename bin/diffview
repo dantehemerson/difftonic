@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Prefer the precompiled binary if present (much faster warm start),
-# otherwise fall back to running via bun.
+# Prefer the Rust binary (much faster), otherwise fall back to bun.
 here="$(cd "$(dirname "$0")/.." && pwd)"
 if [[ -x "$here/bin/diffview-bin" ]]; then
   exec "$here/bin/diffview-bin" "$@"

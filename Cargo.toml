@@ -1,0 +1,43 @@
+[package]
+name = "diffview"
+version = "0.2.0"
+edition = "2021"
+description = "Fast syntax-highlighted terminal diff renderer for LazyGit"
+license = "MIT"
+
+[lib]
+name = "diffview"
+path = "rust/src/lib.rs"
+
+[[bin]]
+name = "diffview"
+path = "rust/src/main.rs"
+
+[[test]]
+name = "render"
+path = "tests-rust/render.rs"
+
+[[test]]
+name = "syntax"
+path = "tests-rust/syntax.rs"
+
+[dependencies]
+clap = { version = "4.5", features = ["derive"] }
+tree-sitter = "0.24"
+tree-sitter-highlight = "0.24"
+tree-sitter-typescript = "0.23"
+tree-sitter-javascript = "0.23"
+tree-sitter-rust = "0.23"
+tree-sitter-python = "0.23"
+tree-sitter-go = "0.23"
+tree-sitter-json = "0.24"
+tree-sitter-css = "0.23"
+tree-sitter-html = "0.23"
+tree-sitter-bash = "0.23"
+tree-sitter-md = "0.3"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = true

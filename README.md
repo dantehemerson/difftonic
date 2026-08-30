@@ -168,33 +168,47 @@ Try a different theme:
 git diff --no-color | bun run src/cli.ts --syntax-theme dracula --theme dark
 ```
 
-## Performance: build a single-file binary
+## Performance: build a Rust binary
 
-LazyGit spawns the renderer on every diff view, so a precompiled binary
-makes the *warm* path noticeably snappier than `bun run`:
+The renderer ships with two implementations:
+
+- `src/cli.ts` — a Bun + TypeScript reference implementation built on
+  `@pierre/diffs` (Shiki). Useful for development and easy modification.
+- `rust/` — a Rust implementation built on `tree-sitter-highlight`. The
+  binary `bin/diffview-bin` is what LazyGit should use.
+
+Build the Rust binary:
 
 ```sh
 bun run build
+# or directly:
+cargo build --release
+cp target/release/diffview bin/diffview-bin
 ```
 
-This produces `bin/diffview-bin` (a self-contained Bun executable).
-The `bin/diffview` wrapper automatically uses it when present, falling
-back to `bun run src/cli.ts` otherwise.
+The wrapper `bin/diffview` automatically uses the Rust binary when it
+exists, and falls back to `bun run src/cli.ts` otherwise.
 
 Benchmark on a 50-line addition / 200-line context patch (macOS arm64):
 
 | Path | Time |
 | --- | --- |
-| `bun run src/cli.ts` (cold) | ~180 ms |
-| `bin/diffview-bin` (cold, including page-in) | ~1.2 s |
-| `bin/diffview-bin` (warm) | **~170 ms** |
+| `bun run src/cli.ts` (warm) | ~190 ms |
+| `bin/diffview-bin` (Rust, cold) | **~30 ms** |
+| `bin/diffview-bin` (Rust, warm) | **~25 ms** |
 
-The cold-start penalty is the OS paging in the 73 MB binary; subsequent
-invocations are nearly identical to `bun run`, since the dominant cost
-is Shiki's highlighter initialization. Tokenization is now batched per
-file so the highlighter shares grammar state across lines, and the
-process preloads the language for the file paths mentioned in the
-patch header (`+++ b/...`) before parsing.
+The Rust binary is also smaller (8.1 MB vs 73 MB). It uses
+tree-sitter grammars loaded only for languages present in the patch
+(`ts`, `tsx`, `js`, `jsx`, `rs`, `py`, `go`, `json`, `css`, `html`,
+`sh`, `bash`), and skips highlighting context lines by default — use
+`--full` to highlight context too.
+
+The Rust implementation has full test parity with the TypeScript one:
+
+```sh
+bun test                    # 61 TS tests
+cargo test --release        # 22 Rust tests
+```
 
 For LazyGit, point the `command:` field at the `bin/diffview` wrapper
 so the binary is used when available:
