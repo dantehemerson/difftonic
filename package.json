@@ -10,7 +10,8 @@
   "scripts": {
     "start": "bun run src/cli.ts",
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "bun build ./src/cli.ts --compile --outfile bin/diffview-bin --target bun --minify --sourcemap=none"
   },
   "dependencies": {
     "@pierre/diffs": "^1.3.5"

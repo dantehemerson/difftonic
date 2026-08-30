@@ -1,2 +1,8 @@
 #!/usr/bin/env bash
-exec bun run "$(dirname "$0")/../src/cli.ts" "$@"
+# Prefer the precompiled binary if present (much faster warm start),
+# otherwise fall back to running via bun.
+here="$(cd "$(dirname "$0")/.." && pwd)"
+if [[ -x "$here/bin/diffview-bin" ]]; then
+  exec "$here/bin/diffview-bin" "$@"
+fi
+exec bun run "$here/src/cli.ts" "$@"

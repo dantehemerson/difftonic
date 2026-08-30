@@ -5,7 +5,7 @@ import type {
   ThemedToken,
 } from "@pierre/diffs";
 import { setLanguageOverride } from "@pierre/diffs";
-import { DEFAULT_SYNTAX_THEME, tokenizeLine } from "./highlight";
+import { DEFAULT_SYNTAX_THEME, tokenizeLine, tokenizeLines } from "./highlight";
 import { languageForPath } from "./language";
 import { DEFAULT_THEME, type Theme } from "./theme";
 
@@ -99,6 +99,19 @@ async function renderFile(
     out.push(line);
   }
 
+  const codeLines: RenderLine[] = [];
+  for (const l of body) {
+    if (l.kind === "context" || l.kind === "addition" || l.kind === "deletion") {
+      codeLines.push(l);
+    }
+  }
+  const tokenized = await tokenizeLines(
+    codeLines.map((l) => l.text),
+    lang,
+    syntaxTheme,
+  );
+
+  let tokenIdx = 0;
   for (const rl of body) {
     if (rl.kind === "hunk-header") {
       out.push(renderHunkHeader(rl, theme));
@@ -113,11 +126,8 @@ async function renderFile(
     if (rl.highlight === false) {
       tokens = [{ content: rl.text, color: "#cccccc" } as ThemedToken];
     } else {
-      try {
-        tokens = await tokenizeLine(rl.text, lang, syntaxTheme);
-      } catch {
-        tokens = [{ content: rl.text, color: "#cccccc" } as ThemedToken];
-      }
+      tokens = tokenized[tokenIdx] ?? [{ content: rl.text, color: "#cccccc" } as ThemedToken];
+      tokenIdx++;
     }
 
     out.push(renderCodeLine(rl, tokens, theme, showLineNumbers));
