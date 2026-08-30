@@ -1,0 +1,22 @@
+{
+  "name": "diffview",
+  "version": "0.1.0",
+  "description": "Syntax-highlighted terminal diff renderer for LazyGit",
+  "module": "src/cli.ts",
+  "type": "module",
+  "bin": {
+    "diffview": "src/cli.ts"
+  },
+  "scripts": {
+    "start": "bun run src/cli.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@pierre/diffs": "^1.3.5"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5"
+  }
+}
