@@ -776,7 +776,6 @@ pub fn render_file(file: &FileDiff, out: &mut String, theme: Theme, options: &Re
 }
 
 const HUNK_INDENT: usize = 13;
-const HUNK_INDICATOR_OFFSET: usize = 3;
 const HUNK_START_INDICATOR: &str = "󰇘";
 const HUNK_BOTH_INDICATOR: &str = "󰹹";
 
@@ -786,11 +785,14 @@ fn hunk_prefix(indicator: &str, line_numbers: bool) -> String {
     }
 
     let indicator_width = char_count(indicator);
+    let padding = HUNK_INDENT.saturating_sub(indicator_width);
+    let padding_before = padding / 2;
+    let padding_after = padding - padding_before;
     format!(
         "{}{}{}",
-        " ".repeat(HUNK_INDICATOR_OFFSET),
+        " ".repeat(padding_before),
         indicator,
-        " ".repeat(HUNK_INDENT.saturating_sub(HUNK_INDICATOR_OFFSET + indicator_width))
+        " ".repeat(padding_after)
     )
 }
 

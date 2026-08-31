@@ -445,7 +445,7 @@ fn hunk_header_uses_start_indicator_at_start_of_file() {
     let hunk_line = plain.lines().find(|line| line.contains("@@ -1,2")).unwrap();
     assert_eq!(
         hunk_line.chars().take(13).collect::<String>(),
-        "   󰇘         "
+        "      󰇘      "
     );
 }
 
@@ -456,7 +456,7 @@ fn hunk_header_uses_up_indicator_for_hidden_context_above() {
     let hunk_line = plain.lines().find(|line| line.contains("@@")).unwrap();
     assert_eq!(
         hunk_line.chars().take(13).collect::<String>(),
-        "   ↑         "
+        "      ↑      "
     );
 }
 
@@ -470,7 +470,7 @@ fn hunk_header_uses_both_indicator_for_hidden_context_on_both_sides() {
         .unwrap();
     assert_eq!(
         hunk_line.chars().take(13).collect::<String>(),
-        "   󰹹         "
+        "      󰹹      "
     );
     assert_eq!(hunk_line.chars().position(|c| c == '@'), Some(13));
 }
@@ -482,7 +482,7 @@ fn hunk_header_uses_down_indicator_when_only_context_below_is_proven() {
     let hunk_line = plain.lines().find(|line| line.contains("@@ -2,1")).unwrap();
     assert_eq!(
         hunk_line.chars().take(13).collect::<String>(),
-        "   ↓         "
+        "      ↓      "
     );
 }
 
