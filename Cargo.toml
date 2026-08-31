@@ -1,25 +1,17 @@
 [package]
 name = "diffview"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "Fast syntax-highlighted terminal diff renderer for LazyGit"
 license = "MIT"
 
 [lib]
 name = "diffview"
-path = "rust/src/lib.rs"
+path = "src/lib.rs"
 
 [[bin]]
 name = "diffview"
-path = "rust/src/main.rs"
-
-[[test]]
-name = "render"
-path = "tests-rust/render.rs"
-
-[[test]]
-name = "syntax"
-path = "tests-rust/syntax.rs"
+path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }

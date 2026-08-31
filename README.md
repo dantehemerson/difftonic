@@ -1,38 +1,36 @@
 # diffview
 
-Syntax-highlighted Git diff renderer designed for use as a LazyGit `diffRenderer`.
+Fast, syntax-highlighted Git diff renderer designed for use as a LazyGit `diffRenderer`.
 
-Reads a `git diff` patch from stdin, parses it through Pierre diffs (`@pierre/diffs`),
-tokenizes each code line via Shiki, and emits an ANSI-colored, gutter-numbered
-unified diff to stdout.
-
-## Why
-
-LazyGit already produces a correct diff command. This tool is a small, focused
-replacement for `delta`/`diff-so-fancy` whose only job is to render that diff
-nicely in a terminal — with proper syntax highlighting that survives the
-addition/deletion backgrounds.
-
-Inspired by the architecture used in
-[hunk](https://github.com/modem-dev/hunk), but without OpenTUI, interactive UI,
-session brokers, or any of the agent-annotation machinery. Only the parsing +
-Shiki + terminal-coloring slice is kept.
+Reads a `git diff` patch from stdin, parses it, tokenizes each code line via
+tree-sitter, and emits an ANSI-colored, gutter-numbered unified diff to stdout.
 
 ## Architecture
 
 ```
 stdin (git diff text)
-  -> sanitize ANSI/CRLF
-  -> @pierre/diffs parsePatchFiles
-  -> per-file language detection (filename -> Shiki grammar)
-  -> per-line Shiki tokenization
-  -> terminal rendering (gutter + marker + colored tokens)
+  -> parse unified diff
+  -> per-file language detection (filename -> tree-sitter grammar)
+  -> per-line tree-sitter tokenization
+  -> terminal rendering (title bar + gutter + rail + colored tokens)
   -> stdout
 ```
 
-- **`@pierre/diffs`** is reused for patch parsing and highlighter bootstrap.
-- **Shiki** (pulled in by Pierre) handles tokenization.
-- **No OpenTUI, no React, no worker pool** — straight ANSI output.
+- **tree-sitter** handles syntax highlighting.
+- **No async, no worker pool** — straight ANSI output.
+
+## Install
+
+```sh
+cargo install --path .
+```
+
+Or build locally:
+
+```sh
+cargo build --release
+# binary at target/release/diffview
+```
 
 ## Usage
 
@@ -40,70 +38,26 @@ stdin (git diff text)
 diffview [options] < patch
 ```
 
-### Output Structure
-
-Each file in the diff gets its own section with two parts:
-
-1. **Title bar** — a one-line header with the file's path, change state
-   (`new` / `deleted` / `renamed`), and additions/deletions counts. Rendered
-   with the diff theme's `fileHeaderBg` so the file boundary is obvious at
-   a glance.
-2. **Hunks** — the syntax-highlighted, gutter-numbered code body.
-
-Files are separated by a `─` rule. The rule is omitted after the last file
-so trailing whitespace doesn't accumulate.
-
-The raw `diff --git` / `index` / `---` / `+++` metadata is intentionally
-omitted — the title bar already carries the path and change state, and the
-hunks carry the rest.
-
-```
- example.ts                                                       deleted +0 -5
-@@ -1,5 +0,0 @@
-
-   1     │ -export function add(a: number, b: number): number {
-   2     │ -  return a + b;
-   3     │ -}
-   4     │ -
-   5     │ -// TODO: handle negative numbers
-────────────────────────────────────────────────────────────────────────────────
-
- main.go                                                                  +5 -0
-@@ -5,4 +5,9 @@ import "fmt"
-```
-
-
-
-| Flag                    | Description                                                                                  | Default                |
-| ----------------------- | -------------------------------------------------------------------------------------------- | ---------------------- |
-| `--syntax-theme <id>`   | Shiki theme id for code highlighting. Any bundled Shiki theme works.                         | `github-dark-default`  |
-| `--theme <name>`        | Diff color theme: `dark`, `light`, or `auto` (picks dark/light based on the syntax theme).   | `auto`                 |
-| `--no-line-numbers`     | Hide line number gutter.                                                                     | (line numbers shown)   |
-| `-h`, `--help`          | Show usage.                                                                                  |                        |
-| `-v`, `--version`       | Print version.                                                                               |                        |
+| Flag                    | Description                                                                                | Default              |
+| ----------------------- | ------------------------------------------------------------------------------------------ | -------------------- |
+| `--syntax-theme <id>`   | tree-sitter theme id for code highlighting.                                                | `github-dark-default`|
+| `--theme <name>`        | Diff color theme: `dark`, `light`, or `auto` (picks dark/light based on the syntax theme). | `auto`               |
+| `--no-line-numbers`     | Hide line number gutter.                                                                   | (shown)              |
+| `--full`                | Highlight context lines too (default: changed lines only).                                 | off                  |
+| `-w, --width <n>`       | Width for title bar and layout. Auto-detected from terminal.                               | terminal width       |
+| `-h, --help`            | Show usage.                                                                                |                      |
+| `-v, --version`         | Print version.                                                                             |                      |
 
 ### Examples
 
 ```sh
 git diff --no-color | diffview
-
-git diff --no-color | diffview --syntax-theme dracula
-
-git diff --no-color | diffview --syntax-theme monokai --theme dark
-
-git diff --no-color | diffview --syntax-theme github-light-default
-
+git diff --no-color | diffview --theme dark
 git diff --no-color | diffview --no-line-numbers
+git diff --no-color | diffview -w 120
 ```
 
-Some well-known Shiki theme ids: `github-dark-default`, `github-light-default`,
-`monokai`, `dracula`, `nord`, `one-dark-pro`, `one-light`, `catppuccin-mocha`,
-`catppuccin-latte`, `solarized-dark`, `solarized-light`, `ayu-dark`,
-`vitesse-dark`, `vitesse-light`, `rose-pine`, `tokyo-night`.
-
 ## Use with LazyGit
-
-Add a `bin` directory to your `PATH`, then point LazyGit at the script:
 
 ```yaml
 # ~/.config/lazygit/config.yml (Linux)
@@ -113,25 +67,13 @@ git:
     - name: diffview
       type: stdinFilter
       colorArg: never
-      command: /absolute/path/to/diff_for_lazygit/bin/diffview
+      command: diffview
 ```
 
 LazyGit must produce uncolored diffs (`colorArg: never`) so the renderer can
 parse the patch safely.
 
-The included `bin/diffview` shell wrapper invokes Bun with `src/cli.ts` if
-`bin/diffview-bin` (built via `bun run build`) isn't present. Building
-the binary is recommended for snappier LazyGit navigation. If you prefer,
-you can symlink the wrapper into your `PATH`:
-
-```sh
-ln -s /absolute/path/to/diff_for_lazygit/bin/diffview ~/.local/bin/diffview
-```
-
-LazyGit runs inside its TUI and waits for the renderer process to exit, so the
-command must not start a pager of its own.
-
-To pass theme options through LazyGit, extend the `command:` field:
+To pass theme options:
 
 ```yaml
 git:
@@ -139,76 +81,39 @@ git:
     - name: diffview-dark
       type: stdinFilter
       colorArg: never
-      command: /absolute/path/to/diff_for_lazygit/bin/diffview --syntax-theme dracula
+      command: diffview --theme dark
     - name: diffview-light
       type: stdinFilter
       colorArg: never
-      command: /absolute/path/to/diff_for_lazygit/bin/diffview --syntax-theme github-light-default --theme auto
+      command: diffview --theme light
 ```
 
 Use the `|` keybinding inside LazyGit to cycle between renderers.
 
-## Local development
+## Output Structure
+
+Each file in the diff gets its own section:
+
+1. **Title bar** — full-width header with file icon, path, change state
+   (`new` / `deleted` / `renamed`), and +/- counts.
+2. **Hunk headers** — indented and aligned with source text, with direction
+   indicators (`↑` `↓` `󰹹`) showing hidden context.
+3. **Code body** — syntax-highlighted, gutter-numbered lines with a colored
+   rail marking additions and deletions.
+
+Files are separated by a `─` rule.
+
+## Supported Languages
+
+TypeScript, JavaScript, Rust, Python, Go, JSON, CSS, HTML, Bash, Markdown.
+
+## Development
 
 ```sh
-bun install
-bun test
-bun run src/cli.ts < path/to/some.patch
-```
-
-To smoke-test against a real repo:
-
-```sh
-git diff --no-color | bun run src/cli.ts
-```
-
-Try a different theme:
-
-```sh
-git diff --no-color | bun run src/cli.ts --syntax-theme dracula --theme dark
-```
-
-## Performance: build a Rust binary
-
-The renderer ships with two implementations:
-
-- `src/cli.ts` — a Bun + TypeScript reference implementation built on
-  `@pierre/diffs` (Shiki). Useful for development and easy modification.
-- `rust/` — a Rust implementation built on `tree-sitter-highlight`. The
-  binary `bin/diffview-bin` is what LazyGit should use.
-
-Build the Rust binary:
-
-```sh
-bun run build
-# or directly:
+cargo test
 cargo build --release
-cp target/release/diffview bin/diffview-bin
 ```
 
-The wrapper `bin/diffview` automatically uses the Rust binary when it
-exists, and falls back to `bun run src/cli.ts` otherwise.
+## License
 
-Benchmark on a 50-line addition / 200-line context patch (macOS arm64):
-
-| Path | Time |
-| --- | --- |
-| `bun run src/cli.ts` (warm) | ~190 ms |
-| `bin/diffview-bin` (Rust, cold) | **~30 ms** |
-| `bin/diffview-bin` (Rust, warm) | **~25 ms** |
-
-The Rust binary is also smaller (8.1 MB vs 73 MB). It uses
-tree-sitter grammars loaded only for languages present in the patch
-(`ts`, `tsx`, `js`, `jsx`, `rs`, `py`, `go`, `json`, `css`, `html`,
-`sh`, `bash`), and skips highlighting context lines by default — use
-`--full` to highlight context too.
-
-The Rust implementation has full test parity with the TypeScript one:
-
-```sh
-bun test                    # 61 TS tests
-cargo test --release        # 22 Rust tests
-```
-
-For LazyGit, point the `command:` field at the `bin/diffview` wrapper
-so the binary is used when available:
+MIT

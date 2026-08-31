@@ -6,7 +6,7 @@ use terminal_size::{terminal_size, Width};
 #[derive(Parser, Debug)]
 #[command(
     name = "diffview",
-    version = "0.2.0",
+    version = "0.3.0",
     about = "Fast syntax-highlighted terminal diff renderer"
 )]
 struct Args {
