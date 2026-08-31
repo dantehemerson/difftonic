@@ -178,8 +178,8 @@ fn gutter_uses_deletion_background_for_deletions() {
         raw_only_new
     );
     // Sanity: make sure we did pick the right lines.
-    assert!(only_old_line.starts_with('▌'));
-    assert!(only_new_line.starts_with('▌'));
+    assert!(only_old_line.starts_with('-'), "deletion line should start with -: {}", only_old_line);
+    assert!(only_new_line.starts_with('+'), "addition line should start with +: {}", only_new_line);
     let _ = (only_old_line, only_new_line);
 }
 

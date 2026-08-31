@@ -146,21 +146,33 @@ fn render_separator_between_files_but_not_after_last() {
 }
 
 #[test]
-fn render_rail_on_every_code_line() {
+fn render_gutter_on_every_code_line() {
     let input = "diff --git a/x.ts b/x.ts\nindex abc..def 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1,3 +1,3 @@\n keep\n-old\n+new\n end\n";
     let out = render(input, &opts());
-    let plain = strip_ansi(&out);
-    let code_lines: Vec<&str> = plain.split('\n').filter(|l| l.starts_with('▌')).collect();
+    let gutter_bgs = [
+        format!("48;2;{};{};{}",
+            (diffview::DARK.meta_bg >> 16) & 0xff,
+            (diffview::DARK.meta_bg >> 8) & 0xff,
+            diffview::DARK.meta_bg & 0xff),
+        format!("48;2;{};{};{}",
+            (diffview::DARK.del_gutter_bg >> 16) & 0xff,
+            (diffview::DARK.del_gutter_bg >> 8) & 0xff,
+            diffview::DARK.del_gutter_bg & 0xff),
+        format!("48;2;{};{};{}",
+            (diffview::DARK.add_gutter_bg >> 16) & 0xff,
+            (diffview::DARK.add_gutter_bg >> 8) & 0xff,
+            diffview::DARK.add_gutter_bg & 0xff),
+    ];
+    let code_lines: Vec<&str> = out.split('\n').filter(|l| l.contains("keep") || l.contains("old") || l.contains("new") || l.contains("end")).collect();
     assert!(!code_lines.is_empty());
     for line in &code_lines {
-        assert!(line.starts_with('▌'));
+        let has_gutter = gutter_bgs.iter().any(|bg| line.contains(bg));
+        assert!(has_gutter, "expected gutter background in {}", line);
     }
-    assert!(out.contains("\x1b[38;2;"));
-    assert!(out.contains("m▌"));
 }
 
 #[test]
-fn render_rail_colored_for_changes() {
+fn render_line_numbers_colored_for_changes() {
     let input = "diff --git a/x.ts b/x.ts\nindex abc..def 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1,1 +1,1 @@\n-old\n+new\n";
     let out = render(input, &opts());
     let plain = strip_ansi(&out);
@@ -168,10 +180,22 @@ fn render_rail_colored_for_changes() {
     let deletion_line = plain.split('\n').find(|l| l.contains("- old"));
     assert!(addition_line.is_some());
     assert!(deletion_line.is_some());
-    assert!(addition_line.unwrap().starts_with('▌'));
-    assert!(deletion_line.unwrap().starts_with('▌'));
-    assert!(out.contains("\x1b[38;2;"));
-    assert!(out.contains(";1m▌"));
+    let add_fg = format!(
+        "38;2;{};{};{}",
+        (diffview::DARK.add_accent >> 16) & 0xff,
+        (diffview::DARK.add_accent >> 8) & 0xff,
+        diffview::DARK.add_accent & 0xff
+    );
+    let del_fg = format!(
+        "38;2;{};{};{}",
+        (diffview::DARK.del_accent >> 16) & 0xff,
+        (diffview::DARK.del_accent >> 8) & 0xff,
+        diffview::DARK.del_accent & 0xff
+    );
+    let raw_add = out.split('\n').find(|l| l.contains("new") && l.contains("+")).unwrap();
+    let raw_del = out.split('\n').find(|l| l.contains("old") && l.contains("-")).unwrap();
+    assert!(raw_add.contains(&add_fg), "addition line number should use add_accent fg: {}", raw_add);
+    assert!(raw_del.contains(&del_fg), "deletion line number should use del_accent fg: {}", raw_del);
 }
 
 #[test]
@@ -306,29 +330,31 @@ fn render_line_numbers_advance_across_multiple_changes() {
     let mut o = opts();
     o.width = 50;
     let out = render(&text, &o);
-    let plain = strip_ansi(&out);
-    let plain_lines: Vec<&str> = plain.split('\n').collect();
+    let raw_lines: Vec<&str> = out.split('\n').collect();
 
-    fn gutter(plain_lines: &[&str], marker: &str) -> (Option<i32>, Option<i32>) {
-        let line = plain_lines
+    fn gutter(raw_lines: &[&str], marker: &str) -> (Option<i32>, Option<i32>) {
+        let line = raw_lines
             .iter()
-            .find(|l| l.contains(marker) && l.starts_with('▌'))
+            .find(|l| {
+                let plain = strip_ansi(l);
+                plain.contains(marker)
+            })
             .unwrap();
-        let after_rail: String = line.chars().skip(1).collect();
-        let old_s: String = after_rail.chars().take(4).collect();
-        let new_s: String = after_rail.chars().skip(5).take(4).collect();
+        let plain = strip_ansi(line);
+        let old_s: String = plain.chars().take(4).collect();
+        let new_s: String = plain.chars().skip(5).take(4).collect();
         let old = old_s.trim().parse::<i32>().ok();
         let new = new_s.trim().parse::<i32>().ok();
         (old, new)
     }
 
-    assert_eq!(gutter(&plain_lines, "  keep A"), (Some(1), Some(1)));
-    assert_eq!(gutter(&plain_lines, "- del1"), (Some(2), None));
-    assert_eq!(gutter(&plain_lines, "+ add1"), (None, Some(2)));
-    assert_eq!(gutter(&plain_lines, "  keep B"), (Some(3), Some(3)));
-    assert_eq!(gutter(&plain_lines, "- del2"), (Some(4), None));
-    assert_eq!(gutter(&plain_lines, "+ add2"), (None, Some(4)));
-    assert_eq!(gutter(&plain_lines, "  keep C"), (Some(5), Some(5)));
+    assert_eq!(gutter(&raw_lines, "  keep A"), (Some(1), Some(1)));
+    assert_eq!(gutter(&raw_lines, "- del1"), (Some(2), None));
+    assert_eq!(gutter(&raw_lines, "+ add1"), (None, Some(2)));
+    assert_eq!(gutter(&raw_lines, "  keep B"), (Some(3), Some(3)));
+    assert_eq!(gutter(&raw_lines, "- del2"), (Some(4), None));
+    assert_eq!(gutter(&raw_lines, "+ add2"), (None, Some(4)));
+    assert_eq!(gutter(&raw_lines, "  keep C"), (Some(5), Some(5)));
 }
 
 #[test]
@@ -414,7 +440,7 @@ fn hunk_header_indented_to_source_text_column() {
     let out = render(input, &opts());
     let plain = strip_ansi(&out);
     let hunk_line = plain.lines().find(|line| line.contains("@@")).unwrap();
-    assert_eq!(hunk_line.chars().position(|c| c == '@'), Some(13));
+    assert_eq!(hunk_line.chars().position(|c| c == '@'), Some(12));
 }
 
 #[test]
@@ -470,8 +496,8 @@ fn hunk_header_uses_start_indicator_at_start_of_file() {
     let plain = strip_ansi(&render(input, &opts()));
     let hunk_line = plain.lines().find(|line| line.contains("@@ -1,2")).unwrap();
     assert_eq!(
-        hunk_line.chars().take(13).collect::<String>(),
-        "      󰇘      "
+        hunk_line.chars().take(12).collect::<String>(),
+        "     󰇘      "
     );
 }
 
@@ -481,8 +507,8 @@ fn hunk_header_uses_up_indicator_for_hidden_context_above() {
     let plain = strip_ansi(&render(input, &opts()));
     let hunk_line = plain.lines().find(|line| line.contains("@@")).unwrap();
     assert_eq!(
-        hunk_line.chars().take(13).collect::<String>(),
-        "      ↑      "
+        hunk_line.chars().take(12).collect::<String>(),
+        "     ↑      "
     );
 }
 
@@ -495,10 +521,10 @@ fn hunk_header_uses_both_indicator_for_hidden_context_on_both_sides() {
         .find(|line| line.contains("@@ -10,1"))
         .unwrap();
     assert_eq!(
-        hunk_line.chars().take(13).collect::<String>(),
-        "      󰹹      "
+        hunk_line.chars().take(12).collect::<String>(),
+        "     󰹹      "
     );
-    assert_eq!(hunk_line.chars().position(|c| c == '@'), Some(13));
+    assert_eq!(hunk_line.chars().position(|c| c == '@'), Some(12));
 }
 
 #[test]
@@ -507,8 +533,8 @@ fn hunk_header_uses_down_indicator_when_only_context_below_is_proven() {
     let plain = strip_ansi(&render(input, &opts()));
     let hunk_line = plain.lines().find(|line| line.contains("@@ -2,1")).unwrap();
     assert_eq!(
-        hunk_line.chars().take(13).collect::<String>(),
-        "      ↓      "
+        hunk_line.chars().take(12).collect::<String>(),
+        "     ↓      "
     );
 }
 
@@ -518,7 +544,7 @@ fn hunk_header_omits_indicator_when_direction_is_unknown() {
     let plain = strip_ansi(&render(input, &opts()));
     let hunk_line = plain.lines().find(|line| line.contains("@@ -2,1")).unwrap();
     assert_eq!(
-        hunk_line.chars().take(13).collect::<String>(),
-        "             "
+        hunk_line.chars().take(12).collect::<String>(),
+        "            "
     );
 }

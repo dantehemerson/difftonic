@@ -40,7 +40,6 @@ pub struct Theme {
     pub header_fg: u32,
     pub header_muted: u32,
     pub separator: u32,
-    pub rail: u32,
     pub add_bg: u32,
     pub del_bg: u32,
     pub add_gutter_bg: u32,
@@ -88,7 +87,6 @@ pub const DARK: Theme = Theme {
     header_fg: 0xe6edf3,
     header_muted: 0x8b949e,
     separator: 0x4a4a4a,
-    rail: 0x4a4a4a,
     add_bg: 0x0e3017,
     del_bg: 0x350a0d,
     add_gutter_bg: 0x144a20,
@@ -133,7 +131,6 @@ pub const LIGHT: Theme = Theme {
     header_fg: 0x0d1117,
     header_muted: 0x57606a,
     separator: 0xb0b0b0,
-    rail: 0xb0b0b0,
     add_bg: 0xdbefdc,
     del_bg: 0xf3d8d8,
     add_gutter_bg: 0xc2e4c5,
@@ -784,7 +781,7 @@ pub fn render_file(file: &FileDiff, out: &mut String, theme: Theme, options: &Re
     }
 }
 
-const HUNK_INDENT: usize = 13;
+const HUNK_INDENT: usize = 12;
 const HUNK_START_INDICATOR: &str = "󰇘";
 const HUNK_BOTH_INDICATOR: &str = "󰹹";
 
@@ -898,14 +895,6 @@ pub fn render_line(
     numbers: bool,
 ) -> String {
     let mut out = String::new();
-    let rail_color = match line.kind {
-        Kind::Addition => t.add_accent,
-        Kind::Deletion => t.del_accent,
-        _ => t.rail,
-    };
-    let rail_bold = line.kind != Kind::Context;
-    out.push_str(&paint("▌", None, Some(rail_color), rail_bold, !rail_bold));
-
     if numbers {
         let old_s = old.map(|n| pad(n, 4)).unwrap_or_else(|| "    ".into());
         let new_s = new.map(|n| pad(n, 4)).unwrap_or_else(|| "    ".into());
