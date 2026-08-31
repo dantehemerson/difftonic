@@ -520,6 +520,20 @@ fn hunk_header_full_row_has_background() {
 }
 
 #[test]
+fn hunk_header_uses_muted_foreground() {
+    let input = "diff --git a/x.ts b/x.ts\n--- a/x.ts\n+++ b/x.ts\n@@ -1,2 +1,2 @@\n-old\n+new\n";
+    let out = render(input, &opts());
+    let muted_fg = format!(
+        "38;2;{};{};{}",
+        (diffview::DARK.hunk_fg >> 16) & 0xff,
+        (diffview::DARK.hunk_fg >> 8) & 0xff,
+        diffview::DARK.hunk_fg & 0xff
+    );
+    let hunk_line = out.split('\n').find(|l| l.contains("@@")).unwrap();
+    assert!(hunk_line.contains(&muted_fg), "hunk header should use muted hunk_fg, line={}", hunk_line);
+}
+
+#[test]
 fn hunk_header_uses_start_indicator_at_start_of_file() {
     let input = "diff --git a/x.ts b/x.ts\n--- a/x.ts\n+++ b/x.ts\n@@ -1,2 +1,2 @@\n-old\n+new\n@@ -10,1 +10,1 @@\n-old ten\n+new ten\n";
     let plain = strip_ansi(&render(input, &opts()));
