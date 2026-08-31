@@ -710,11 +710,28 @@ pub fn render_file(file: &FileDiff, out: &mut String, theme: Theme, options: &Re
 
     for hunk in &file.hunks {
         if !should_hide_hunk_header(file, hunk) {
+            let hunk_indent = if options.no_line_numbers { 2 } else { 13 };
+            let hunk_text_len = char_count(&hunk.header);
+            let padding_after = width.saturating_sub(hunk_indent + hunk_text_len).max(0);
+            out.push_str(&paint(
+                &" ".repeat(hunk_indent),
+                Some(theme.hunk_bg),
+                None,
+                false,
+                false,
+            ));
             out.push_str(&paint(
                 &hunk.header,
                 Some(theme.hunk_bg),
                 Some(theme.hunk_fg),
                 true,
+                false,
+            ));
+            out.push_str(&paint(
+                &" ".repeat(padding_after),
+                Some(theme.hunk_bg),
+                None,
+                false,
                 false,
             ));
             out.push('\n');

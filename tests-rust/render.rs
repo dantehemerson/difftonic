@@ -377,14 +377,74 @@ fn hunk_header_followed_by_code_line() {
     let plain = strip_ansi(&out);
     let lines: Vec<&str> = plain.lines().collect();
     for (i, line) in lines.iter().enumerate() {
-        if line.contains("@@") && line.starts_with("@@") {
+        if line.trim_start().starts_with("@@") {
             assert!(i + 1 < lines.len(), "hunk header has no following line");
             let next = &lines[i + 1];
             assert!(
-                !next.is_empty() && !next.contains("@@"),
+                !next.is_empty() && !next.trim_start().starts_with("@@"),
                 "blank or hunk line immediately after hunk header: got {:?}",
                 next
             );
         }
     }
+}
+
+#[test]
+fn hunk_header_indented_to_source_text_column() {
+    let input = "diff --git a/x.ts b/x.ts\nindex abc..def 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1,2 +1,2 @@\n-const a = 1;\n+const a = 2;\n@@ -10,2 +10,2 @@\n const b = 3;\n-const c = 4;\n+const c = 5;\n";
+    let out = render(input, &opts());
+    let plain = strip_ansi(&out);
+    let hunk_line = plain
+        .lines()
+        .find(|l| l.trim_start().starts_with("@@"))
+        .unwrap();
+    let leading_spaces = hunk_line.len() - hunk_line.trim_start().len();
+    assert_eq!(leading_spaces, 13);
+}
+
+#[test]
+fn hunk_header_indent_without_line_numbers() {
+    let input = "diff --git a/x.ts b/x.ts\nindex abc..def 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1,2 +1,2 @@\n-const a = 1;\n+const a = 2;\n@@ -10,2 +10,2 @@\n const b = 3;\n-const c = 4;\n+const c = 5;\n";
+    let mut o = opts();
+    o.no_line_numbers = true;
+    let out = render(input, &o);
+    let plain = strip_ansi(&out);
+    let hunk_line = plain
+        .lines()
+        .find(|l| l.trim_start().starts_with("@@"))
+        .unwrap();
+    let leading_spaces = hunk_line.len() - hunk_line.trim_start().len();
+    assert_eq!(leading_spaces, 2);
+}
+
+#[test]
+fn hunk_header_row_fills_width() {
+    let input = "diff --git a/x.ts b/x.ts\nindex abc..def 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1,2 +1,2 @@\n-const a = 1;\n+const a = 2;\n@@ -10,2 +10,2 @@\n const b = 3;\n-const c = 4;\n+const c = 5;\n";
+    let mut o = opts();
+    o.width = 60;
+    let out = render(input, &o);
+    let plain = strip_ansi(&out);
+    let hunk_line = plain
+        .lines()
+        .find(|l| l.trim_start().starts_with("@@"))
+        .unwrap();
+    assert_eq!(hunk_line.len(), 60);
+}
+
+#[test]
+fn hunk_header_full_row_has_background() {
+    let input = "diff --git a/x.ts b/x.ts\nindex abc..def 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1,2 +1,2 @@\n-const a = 1;\n+const a = 2;\n";
+    let mut o = opts();
+    o.width = 50;
+    let out = render(input, &o);
+    let hunk_bg = "48;2;13;44;69";
+    let lines: Vec<&str> = out.split('\n').collect();
+    let hunk_line = lines
+        .iter()
+        .find(|l| l.contains("@@"))
+        .unwrap();
+    let stripped = strip_ansi(hunk_line);
+    assert_eq!(stripped.len(), 50);
+    let bg_count = hunk_line.matches(hunk_bg).count();
+    assert!(bg_count >= 2, "hunk_bg should cover indent + text + padding");
 }
