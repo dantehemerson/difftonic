@@ -933,15 +933,15 @@ pub fn render_line(
             false,
             !new_active,
         ));
-        out.push_str(&paint("│ ", new_bg, None, false, false));
+        out.push_str(&paint(" ", new_bg, None, false, false));
     }
 
     let (prefix, bg, fg) = match line.kind {
-        Kind::Addition => ('+', Some(t.add_bg), t.add_accent),
-        Kind::Deletion => ('-', Some(t.del_bg), t.del_accent),
-        _ => (' ', None, t.meta_fg),
+        Kind::Addition => ("+  ", Some(t.add_bg), t.add_accent),
+        Kind::Deletion => ("-  ", Some(t.del_bg), t.del_accent),
+        _ => ("   ", None, t.meta_fg),
     };
-    out.push_str(&paint(&prefix.to_string(), bg, Some(fg), false, false));
+    out.push_str(&paint(prefix, bg, Some(fg), false, false));
 
     if tokens.is_empty() {
         out.push_str(&paint(&line.text, bg, Some(fg), false, false));

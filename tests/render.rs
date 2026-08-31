@@ -150,7 +150,7 @@ fn render_rail_on_every_code_line() {
     let input = "diff --git a/x.ts b/x.ts\nindex abc..def 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1,3 +1,3 @@\n keep\n-old\n+new\n end\n";
     let out = render(input, &opts());
     let plain = strip_ansi(&out);
-    let code_lines: Vec<&str> = plain.split('\n').filter(|l| l.contains('│')).collect();
+    let code_lines: Vec<&str> = plain.split('\n').filter(|l| l.starts_with('▌')).collect();
     assert!(!code_lines.is_empty());
     for line in &code_lines {
         assert!(line.starts_with('▌'));
@@ -164,8 +164,8 @@ fn render_rail_colored_for_changes() {
     let input = "diff --git a/x.ts b/x.ts\nindex abc..def 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1,1 +1,1 @@\n-old\n+new\n";
     let out = render(input, &opts());
     let plain = strip_ansi(&out);
-    let addition_line = plain.split('\n').find(|l| l.contains("+new"));
-    let deletion_line = plain.split('\n').find(|l| l.contains("-old"));
+    let addition_line = plain.split('\n').find(|l| l.contains("+  new"));
+    let deletion_line = plain.split('\n').find(|l| l.contains("-  old"));
     assert!(addition_line.is_some());
     assert!(deletion_line.is_some());
     assert!(addition_line.unwrap().starts_with('▌'));
@@ -312,25 +312,23 @@ fn render_line_numbers_advance_across_multiple_changes() {
     fn gutter(plain_lines: &[&str], marker: &str) -> (Option<i32>, Option<i32>) {
         let line = plain_lines
             .iter()
-            .find(|l| l.contains(&format!("│ {}", marker)))
+            .find(|l| l.contains(marker) && l.starts_with('▌'))
             .unwrap();
-        let prefix = line.split('│').next().unwrap();
-        let after_rail = prefix.trim_start_matches('▌');
-        let chars: Vec<char> = after_rail.chars().collect();
-        let old_s: String = chars.iter().take(4).collect();
-        let new_s: String = chars.iter().skip(5).take(4).collect();
+        let after_rail: String = line.chars().skip(1).collect();
+        let old_s: String = after_rail.chars().take(4).collect();
+        let new_s: String = after_rail.chars().skip(5).take(4).collect();
         let old = old_s.trim().parse::<i32>().ok();
         let new = new_s.trim().parse::<i32>().ok();
         (old, new)
     }
 
-    assert_eq!(gutter(&plain_lines, " keep A"), (Some(1), Some(1)));
-    assert_eq!(gutter(&plain_lines, "-del1"), (Some(2), None));
-    assert_eq!(gutter(&plain_lines, "+add1"), (None, Some(2)));
-    assert_eq!(gutter(&plain_lines, " keep B"), (Some(3), Some(3)));
-    assert_eq!(gutter(&plain_lines, "-del2"), (Some(4), None));
-    assert_eq!(gutter(&plain_lines, "+add2"), (None, Some(4)));
-    assert_eq!(gutter(&plain_lines, " keep C"), (Some(5), Some(5)));
+    assert_eq!(gutter(&plain_lines, "   keep A"), (Some(1), Some(1)));
+    assert_eq!(gutter(&plain_lines, "-  del1"), (Some(2), None));
+    assert_eq!(gutter(&plain_lines, "+  add1"), (None, Some(2)));
+    assert_eq!(gutter(&plain_lines, "   keep B"), (Some(3), Some(3)));
+    assert_eq!(gutter(&plain_lines, "-  del2"), (Some(4), None));
+    assert_eq!(gutter(&plain_lines, "+  add2"), (None, Some(4)));
+    assert_eq!(gutter(&plain_lines, "   keep C"), (Some(5), Some(5)));
 }
 
 #[test]
