@@ -611,8 +611,8 @@ pub fn render_file(file: &FileDiff, out: &mut String, theme: Theme, options: &Re
     if let Some(l) = label {
         stats_parts.push((l.to_string(), theme.header_muted, false));
     }
-    stats_parts.push((format!("+{}", additions), theme.add_accent, true));
-    stats_parts.push((format!("-{}", deletions), theme.del_accent, true));
+    stats_parts.push((format!("+{}", additions), theme.add_accent, false));
+    stats_parts.push((format!("-{}", deletions), theme.del_accent, false));
     let stats_rendered = render_stats(&stats_parts, theme);
     let stats_len = char_count(&stats_rendered);
 
@@ -716,7 +716,7 @@ pub fn render_file(file: &FileDiff, out: &mut String, theme: Theme, options: &Re
                 &hunk.header,
                 Some(theme.hunk_bg),
                 Some(theme.hunk_fg),
-                true,
+                false,
                 false,
             ));
             out.push_str(&paint(
@@ -923,25 +923,25 @@ pub fn render_line(
             &old_s,
             old_bg,
             Some(if old_active { t.del_accent } else { t.meta_fg }),
-            old_active,
+            false,
             !old_active,
         ));
         out.push_str(&paint(
             &format!(" {}", new_s),
             new_bg,
             Some(if new_active { t.add_accent } else { t.meta_fg }),
-            new_active,
+            false,
             !new_active,
         ));
         out.push_str(&paint("│ ", new_bg, None, false, false));
     }
 
-    let (prefix, bg, fg, mark_bold) = match line.kind {
-        Kind::Addition => ('+', Some(t.add_bg), t.add_accent, true),
-        Kind::Deletion => ('-', Some(t.del_bg), t.del_accent, true),
-        _ => (' ', None, t.meta_fg, false),
+    let (prefix, bg, fg) = match line.kind {
+        Kind::Addition => ('+', Some(t.add_bg), t.add_accent),
+        Kind::Deletion => ('-', Some(t.del_bg), t.del_accent),
+        _ => (' ', None, t.meta_fg),
     };
-    out.push_str(&paint(&prefix.to_string(), bg, Some(fg), mark_bold, false));
+    out.push_str(&paint(&prefix.to_string(), bg, Some(fg), false, false));
 
     if tokens.is_empty() {
         out.push_str(&paint(&line.text, bg, Some(fg), false, false));
