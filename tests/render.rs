@@ -346,6 +346,28 @@ fn render_hides_line_numbers_when_requested() {
 }
 
 #[test]
+fn render_addition_line_numbers_painted_green() {
+    let input = "diff --git a/x.ts b/x.ts\nindex abc..def 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1,3 +1,3 @@\n keep\n-old\n+new\n end\n";
+    let out = render(input, &opts());
+    let add_fg = format!(
+        "38;2;{};{};{}",
+        (diffview::DARK.add_accent >> 16) & 0xff,
+        (diffview::DARK.add_accent >> 8) & 0xff,
+        diffview::DARK.add_accent & 0xff
+    );
+    let del_fg = format!(
+        "38;2;{};{};{}",
+        (diffview::DARK.del_accent >> 16) & 0xff,
+        (diffview::DARK.del_accent >> 8) & 0xff,
+        diffview::DARK.del_accent & 0xff
+    );
+    let raw_add = out.split('\n').find(|l| l.contains("new") && l.contains("+")).unwrap();
+    let raw_del = out.split('\n').find(|l| l.contains("old") && l.contains("-")).unwrap();
+    assert!(raw_add.contains(&add_fg), "addition line number should use add_accent fg: {}", raw_add);
+    assert!(raw_del.contains(&del_fg), "deletion line number should use del_accent fg: {}", raw_del);
+}
+
+#[test]
 fn render_separator_present_for_multi_file() {
     let input = "diff --git a/a.ts b/a.ts\nindex 111..222 100644\n--- a/a.ts\n+++ b/a.ts\n@@ -1,1 +1,1 @@\n-a\n+b\ndiff --git a/b.ts b/b.ts\nindex 333..444 100644\n--- a/b.ts\n+++ b/b.ts\n@@ -1,1 +1,1 @@\n-c\n+d\n";
     let out = render(input, &opts());

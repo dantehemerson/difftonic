@@ -920,14 +920,20 @@ pub fn render_line(
             Some(t.meta_bg)
         };
         out.push_str(&paint(
-            &format!("{}{}│ ", old_s, format!(" {}", new_s)),
+            &old_s,
             old_bg,
             Some(if old_active { t.del_accent } else { t.meta_fg }),
             old_active,
             !old_active,
         ));
-        let new_fg = if new_active { t.add_accent } else { t.meta_fg };
-        out.push_str(&paint("", new_bg, Some(new_fg), new_active, !new_active));
+        out.push_str(&paint(
+            &format!(" {}", new_s),
+            new_bg,
+            Some(if new_active { t.add_accent } else { t.meta_fg }),
+            new_active,
+            !new_active,
+        ));
+        out.push_str(&paint("│ ", new_bg, None, false, false));
     }
 
     let (prefix, bg, fg, mark_bold) = match line.kind {
