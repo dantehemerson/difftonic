@@ -41,7 +41,7 @@ diffview [options] < patch
 | Flag                    | Description                                                                                | Default              |
 | ----------------------- | ------------------------------------------------------------------------------------------ | -------------------- |
 | `--syntax-theme <id>`   | tree-sitter theme id for code highlighting.                                                | `github-dark-default`|
-| `--theme <name>`        | Diff color theme: `dark`, `light`, or `auto` (picks dark/light based on the syntax theme). | `auto`               |
+| `--theme <name>`        | Diff color theme: `dark`, `light`, `auto`, or `system` (uses the terminal palette).          | `auto`               |
 | `--no-line-numbers`     | Hide line number gutter.                                                                   | (shown)              |
 | `--full`                | Highlight context lines too (default: changed lines only).                                 | off                  |
 | `-w, --width <n>`       | Width for title bar and layout. Auto-detected from terminal.                               | terminal width       |
@@ -53,6 +53,7 @@ diffview [options] < patch
 ```sh
 git diff --no-color | diffview
 git diff --no-color | diffview --theme dark
+git diff --no-color | diffview --theme system
 git diff --no-color | diffview --no-line-numbers
 git diff --no-color | diffview -w 120
 ```
@@ -89,6 +90,15 @@ git:
 ```
 
 Use the `|` keybinding inside LazyGit to cycle between renderers.
+
+The `system` theme queries the controlling terminal for its foreground,
+background, and ANSI palette when possible. It derives muted UI colors and
+diff backgrounds from those values. When exact palette queries are unavailable,
+including in LazyGit's renderer PTY, it combines terminal-native ANSI colors
+with subtle built-in dark or light diff backgrounds. The syntax theme selects
+the fallback variant, so use a light syntax theme with a light terminal. The
+complete built-in dark or light theme is only used when terminal coloring is
+unavailable.
 
 ## Output Structure
 

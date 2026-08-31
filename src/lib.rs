@@ -3,10 +3,17 @@ use tree_sitter_highlight::{HighlightConfiguration, HighlightEvent, Highlighter}
 
 mod highlight;
 mod icons;
+mod system_theme;
 
 pub const RESET: &str = "\x1b[0m";
 pub const FILE_ICON: &str = "\u{f15b}";
 pub const DEFAULT_WIDTH: usize = 80;
+const ANSI_COLOR: u32 = 0x01000000;
+const DEFAULT_COLOR: u32 = 0x02000000;
+
+const fn ansi_color(index: u8) -> u32 {
+    ANSI_COLOR | index as u32
+}
 
 #[derive(Debug, Clone)]
 pub struct RenderOptions {
@@ -389,20 +396,10 @@ pub fn is_light_theme(name: &str) -> bool {
 pub fn paint(text: &str, bg: Option<u32>, fg: Option<u32>, bold: bool, dim: bool) -> String {
     let mut codes: Vec<String> = Vec::new();
     if let Some(c) = bg {
-        codes.push(format!(
-            "48;2;{};{};{}",
-            (c >> 16) & 255,
-            (c >> 8) & 255,
-            c & 255
-        ));
+        codes.push(color_code(c, true));
     }
     if let Some(c) = fg {
-        codes.push(format!(
-            "38;2;{};{};{}",
-            (c >> 16) & 255,
-            (c >> 8) & 255,
-            c & 255
-        ));
+        codes.push(color_code(c, false));
     }
     if bold {
         codes.push("1".into());
@@ -415,6 +412,22 @@ pub fn paint(text: &str, bg: Option<u32>, fg: Option<u32>, bold: bool, dim: bool
     } else {
         format!("{}\x1b[{}m{}{}", RESET, codes.join(";"), text, RESET)
     }
+}
+
+fn color_code(color: u32, background: bool) -> String {
+    let channel = if background { 48 } else { 38 };
+    if color & 0xff000000 == ANSI_COLOR {
+        return format!("{channel};5;{}", color & 0xff);
+    }
+    if color == DEFAULT_COLOR {
+        return if background { "49" } else { "39" }.to_string();
+    }
+    format!(
+        "{channel};2;{};{};{}",
+        (color >> 16) & 255,
+        (color >> 8) & 255,
+        color & 255
+    )
 }
 
 pub fn pad(n: usize, w: usize) -> String {
@@ -546,6 +559,10 @@ pub fn parse_hunk_numbers(header: &str) -> (usize, usize) {
 }
 
 pub fn resolve_theme(options: &RenderOptions) -> Theme {
+    if options.theme == "system" {
+        let light = is_light_theme(&options.syntax_theme);
+        return system_theme::detect(light).unwrap_or(if light { LIGHT } else { DARK });
+    }
     let light = options.theme == "light"
         || (options.theme == "auto" && is_light_theme(&options.syntax_theme));
     if light {
