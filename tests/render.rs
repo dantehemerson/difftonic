@@ -164,8 +164,8 @@ fn render_rail_colored_for_changes() {
     let input = "diff --git a/x.ts b/x.ts\nindex abc..def 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1,1 +1,1 @@\n-old\n+new\n";
     let out = render(input, &opts());
     let plain = strip_ansi(&out);
-    let addition_line = plain.split('\n').find(|l| l.contains("+  new"));
-    let deletion_line = plain.split('\n').find(|l| l.contains("-  old"));
+    let addition_line = plain.split('\n').find(|l| l.contains("+ new"));
+    let deletion_line = plain.split('\n').find(|l| l.contains("- old"));
     assert!(addition_line.is_some());
     assert!(deletion_line.is_some());
     assert!(addition_line.unwrap().starts_with('▌'));
@@ -322,13 +322,13 @@ fn render_line_numbers_advance_across_multiple_changes() {
         (old, new)
     }
 
-    assert_eq!(gutter(&plain_lines, "   keep A"), (Some(1), Some(1)));
-    assert_eq!(gutter(&plain_lines, "-  del1"), (Some(2), None));
-    assert_eq!(gutter(&plain_lines, "+  add1"), (None, Some(2)));
-    assert_eq!(gutter(&plain_lines, "   keep B"), (Some(3), Some(3)));
-    assert_eq!(gutter(&plain_lines, "-  del2"), (Some(4), None));
-    assert_eq!(gutter(&plain_lines, "+  add2"), (None, Some(4)));
-    assert_eq!(gutter(&plain_lines, "   keep C"), (Some(5), Some(5)));
+    assert_eq!(gutter(&plain_lines, "  keep A"), (Some(1), Some(1)));
+    assert_eq!(gutter(&plain_lines, "- del1"), (Some(2), None));
+    assert_eq!(gutter(&plain_lines, "+ add1"), (None, Some(2)));
+    assert_eq!(gutter(&plain_lines, "  keep B"), (Some(3), Some(3)));
+    assert_eq!(gutter(&plain_lines, "- del2"), (Some(4), None));
+    assert_eq!(gutter(&plain_lines, "+ add2"), (None, Some(4)));
+    assert_eq!(gutter(&plain_lines, "  keep C"), (Some(5), Some(5)));
 }
 
 #[test]
@@ -447,14 +447,20 @@ fn hunk_header_full_row_has_background() {
     o.width = 50;
     let out = render(input, &o);
     let hunk_bg = "48;2;13;44;69";
+    let hunk_gutter_bg = "48;2;22;74;112";
     let lines: Vec<&str> = out.split('\n').collect();
     let hunk_line = lines.iter().find(|l| l.contains("@@")).unwrap();
     let stripped = strip_ansi(hunk_line);
     assert_eq!(stripped.chars().count(), 50);
-    let bg_count = hunk_line.matches(hunk_bg).count();
+    let hunk_bg_count = hunk_line.matches(hunk_bg).count();
+    let gutter_bg_count = hunk_line.matches(hunk_gutter_bg).count();
     assert!(
-        bg_count >= 2,
-        "hunk_bg should cover indent + text + padding"
+        hunk_bg_count >= 1,
+        "hunk_bg should cover text + padding"
+    );
+    assert!(
+        gutter_bg_count >= 1,
+        "hunk_gutter_bg should cover the gutter prefix"
     );
 }
 

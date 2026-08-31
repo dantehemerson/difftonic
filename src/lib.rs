@@ -35,6 +35,7 @@ pub struct Theme {
     pub meta_fg: u32,
     pub hunk_bg: u32,
     pub hunk_fg: u32,
+    pub hunk_gutter_bg: u32,
     pub header_bg: u32,
     pub header_fg: u32,
     pub header_muted: u32,
@@ -42,6 +43,8 @@ pub struct Theme {
     pub rail: u32,
     pub add_bg: u32,
     pub del_bg: u32,
+    pub add_gutter_bg: u32,
+    pub del_gutter_bg: u32,
     pub add_accent: u32,
     pub del_accent: u32,
     pub syntax: Syntax,
@@ -80,6 +83,7 @@ pub const DARK: Theme = Theme {
     meta_fg: 0x9da0a6,
     hunk_bg: 0x0d2c45,
     hunk_fg: 0xdceefb,
+    hunk_gutter_bg: 0x164a70,
     header_bg: 0x2b3138,
     header_fg: 0xe6edf3,
     header_muted: 0x8b949e,
@@ -87,6 +91,8 @@ pub const DARK: Theme = Theme {
     rail: 0x4a4a4a,
     add_bg: 0x0e3017,
     del_bg: 0x350a0d,
+    add_gutter_bg: 0x144a20,
+    del_gutter_bg: 0x4e1518,
     add_accent: 0x86d687,
     del_accent: 0xed9b9b,
     syntax: Syntax {
@@ -122,6 +128,7 @@ pub const LIGHT: Theme = Theme {
     meta_fg: 0x555555,
     hunk_bg: 0xb6dcf5,
     hunk_fg: 0x073a5e,
+    hunk_gutter_bg: 0x9fc9eb,
     header_bg: 0xd9e1e8,
     header_fg: 0x0d1117,
     header_muted: 0x57606a,
@@ -129,6 +136,8 @@ pub const LIGHT: Theme = Theme {
     rail: 0xb0b0b0,
     add_bg: 0xdbefdc,
     del_bg: 0xf3d8d8,
+    add_gutter_bg: 0xc2e4c5,
+    del_gutter_bg: 0xeabfbf,
     add_accent: 0x2c7a2c,
     del_accent: 0xa93232,
     syntax: Syntax {
@@ -707,7 +716,7 @@ pub fn render_file(file: &FileDiff, out: &mut String, theme: Theme, options: &Re
             let padding_after = width.saturating_sub(hunk_indent + hunk_text_len);
             out.push_str(&paint(
                 &hunk_prefix,
-                Some(theme.hunk_bg),
+                Some(theme.hunk_gutter_bg),
                 Some(theme.hunk_fg),
                 false,
                 false,
@@ -902,52 +911,47 @@ pub fn render_line(
         let new_s = new.map(|n| pad(n, 4)).unwrap_or_else(|| "    ".into());
         let old_active = line.kind == Kind::Deletion;
         let new_active = line.kind == Kind::Addition;
-        // Each side of the gutter gets the same background as its line
-        // type (deletion/addition bg or the muted gutter bg), so the
-        // accent color visually extends into the line-number column.
-        let old_bg = if old_active {
-            Some(t.del_bg)
+        let gutter_bg = if old_active {
+            Some(t.del_gutter_bg)
         } else if new_active {
-            Some(t.add_bg)
-        } else {
-            Some(t.meta_bg)
-        };
-        let new_bg = if new_active {
-            Some(t.add_bg)
-        } else if old_active {
-            Some(t.del_bg)
+            Some(t.add_gutter_bg)
         } else {
             Some(t.meta_bg)
         };
         out.push_str(&paint(
             &old_s,
-            old_bg,
+            gutter_bg,
             Some(if old_active { t.del_accent } else { t.meta_fg }),
             false,
             !old_active,
         ));
         out.push_str(&paint(
             &format!(" {}", new_s),
-            new_bg,
+            gutter_bg,
             Some(if new_active { t.add_accent } else { t.meta_fg }),
             false,
             !new_active,
         ));
-        out.push_str(&paint(" ", new_bg, None, false, false));
+        out.push_str(&paint(" ", gutter_bg, None, false, false));
     }
 
-    let (prefix, bg, fg) = match line.kind {
-        Kind::Addition => ("+  ", Some(t.add_bg), t.add_accent),
-        Kind::Deletion => ("-  ", Some(t.del_bg), t.del_accent),
-        _ => ("   ", None, t.meta_fg),
+    let gutter_bg = match line.kind {
+        Kind::Addition => Some(t.add_gutter_bg),
+        Kind::Deletion => Some(t.del_gutter_bg),
+        _ => Some(t.meta_bg),
     };
-    out.push_str(&paint(prefix, bg, Some(fg), false, false));
+    let (marker, code_bg, fg) = match line.kind {
+        Kind::Addition => ("+ ", Some(t.add_bg), t.add_accent),
+        Kind::Deletion => ("- ", Some(t.del_bg), t.del_accent),
+        _ => ("  ", None, t.meta_fg),
+    };
+    out.push_str(&paint(marker, gutter_bg, Some(fg), false, false));
 
     if tokens.is_empty() {
-        out.push_str(&paint(&line.text, bg, Some(fg), false, false));
+        out.push_str(&paint(&line.text, code_bg, Some(fg), false, false));
     } else {
         for tok in tokens {
-            out.push_str(&paint(&tok.text, bg, Some(tok.color), false, false));
+            out.push_str(&paint(&tok.text, code_bg, Some(tok.color), false, false));
         }
         out.push_str(RESET);
     }

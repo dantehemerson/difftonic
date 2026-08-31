@@ -136,15 +136,15 @@ fn gutter_uses_deletion_background_for_deletions() {
     let output = render(input, &RenderOptions::default());
     let del_bg = format!(
         "48;2;{};{};{}",
-        (DARK.del_bg >> 16) & 0xff,
-        (DARK.del_bg >> 8) & 0xff,
-        DARK.del_bg & 0xff
+        (DARK.del_gutter_bg >> 16) & 0xff,
+        (DARK.del_gutter_bg >> 8) & 0xff,
+        DARK.del_gutter_bg & 0xff
     );
     let add_bg = format!(
         "48;2;{};{};{}",
-        (DARK.add_bg >> 16) & 0xff,
-        (DARK.add_bg >> 8) & 0xff,
-        DARK.add_bg & 0xff
+        (DARK.add_gutter_bg >> 16) & 0xff,
+        (DARK.add_gutter_bg >> 8) & 0xff,
+        DARK.add_gutter_bg & 0xff
     );
     let plain = strip_ansi(&output);
     let only_old_line = plain
