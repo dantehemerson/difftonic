@@ -172,6 +172,35 @@ fn render_gutter_on_every_code_line() {
 }
 
 #[test]
+fn addition_deletion_fill_terminal_width() {
+    let input = "diff --git a/x.ts b/x.ts\n--- a/x.ts\n+++ b/x.ts\n@@ -1,1 +1,1 @@\n-old\n+new\n";
+    let mut o = opts();
+    o.width = 60;
+    let out = render(input, &o);
+    let plain = strip_ansi(&out);
+    for line in plain.split('\n') {
+        if line.contains("+ new") || line.contains("- old") {
+            assert_eq!(line.chars().count(), 60, "code line should fill width: {:?}", line);
+        }
+    }
+}
+
+#[test]
+fn addition_deletion_fill_width_without_line_numbers() {
+    let input = "diff --git a/x.ts b/x.ts\n--- a/x.ts\n+++ b/x.ts\n@@ -1,1 +1,1 @@\n-old\n+new\n";
+    let mut o = opts();
+    o.width = 60;
+    o.no_line_numbers = true;
+    let out = render(input, &o);
+    let plain = strip_ansi(&out);
+    for line in plain.split('\n') {
+        if line.contains("+ new") || line.contains("- old") {
+            assert_eq!(line.chars().count(), 60, "code line should fill width: {:?}", line);
+        }
+    }
+}
+
+#[test]
 fn render_line_numbers_colored_for_changes() {
     let input = "diff --git a/x.ts b/x.ts\nindex abc..def 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1,1 +1,1 @@\n-old\n+new\n";
     let out = render(input, &opts());

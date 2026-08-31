@@ -775,6 +775,7 @@ pub fn render_file(file: &FileDiff, out: &mut String, theme: Theme, options: &Re
                 &tokens,
                 theme,
                 !options.no_line_numbers,
+                width,
             ));
             out.push('\n');
         }
@@ -893,6 +894,7 @@ pub fn render_line(
     tokens: &[Token],
     t: Theme,
     numbers: bool,
+    width: usize,
 ) -> String {
     let mut out = String::new();
     if numbers {
@@ -942,8 +944,22 @@ pub fn render_line(
         for tok in tokens {
             out.push_str(&paint(&tok.text, code_bg, Some(tok.color), false, false));
         }
-        out.push_str(RESET);
     }
+
+    if matches!(line.kind, Kind::Addition | Kind::Deletion) {
+        let used = char_count(&out);
+        if used < width {
+            let pad_bg = code_bg;
+            out.push_str(&paint(
+                &" ".repeat(width - used),
+                pad_bg,
+                None,
+                false,
+                false,
+            ));
+        }
+    }
+
     out
 }
 
