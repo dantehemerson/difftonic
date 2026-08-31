@@ -16,7 +16,10 @@ struct Args {
     theme: String,
     #[arg(long)]
     no_line_numbers: bool,
-    #[arg(long, help = "Highlight context lines too (default: changed lines only)")]
+    #[arg(
+        long,
+        help = "Highlight context lines too (default: changed lines only)"
+    )]
     full: bool,
     #[arg(long, short = 'w', help = "Width for title bar and layout")]
     width: Option<usize>,

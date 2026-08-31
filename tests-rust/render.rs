@@ -150,10 +150,7 @@ fn render_rail_on_every_code_line() {
     let input = "diff --git a/x.ts b/x.ts\nindex abc..def 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1,3 +1,3 @@\n keep\n-old\n+new\n end\n";
     let out = render(input, &opts());
     let plain = strip_ansi(&out);
-    let code_lines: Vec<&str> = plain
-        .split('\n')
-        .filter(|l| l.contains('│'))
-        .collect();
+    let code_lines: Vec<&str> = plain.split('\n').filter(|l| l.contains('│')).collect();
     assert!(!code_lines.is_empty());
     for line in &code_lines {
         assert!(line.starts_with('▌'));
@@ -348,7 +345,6 @@ fn render_hides_line_numbers_when_requested() {
     }
 }
 
-
 #[test]
 fn render_separator_present_for_multi_file() {
     let input = "diff --git a/a.ts b/a.ts\nindex 111..222 100644\n--- a/a.ts\n+++ b/a.ts\n@@ -1,1 +1,1 @@\n-a\n+b\ndiff --git a/b.ts b/b.ts\nindex 333..444 100644\n--- a/b.ts\n+++ b/b.ts\n@@ -1,1 +1,1 @@\n-c\n+d\n";
@@ -376,17 +372,20 @@ fn hunk_header_followed_by_code_line() {
     let out = render(input, &opts());
     let plain = strip_ansi(&out);
     let lines: Vec<&str> = plain.lines().collect();
+    let mut header_count = 0;
     for (i, line) in lines.iter().enumerate() {
-        if line.trim_start().starts_with("@@") {
+        if line.contains("@@") {
+            header_count += 1;
             assert!(i + 1 < lines.len(), "hunk header has no following line");
             let next = &lines[i + 1];
             assert!(
-                !next.is_empty() && !next.trim_start().starts_with("@@"),
+                !next.is_empty() && !next.contains("@@"),
                 "blank or hunk line immediately after hunk header: got {:?}",
                 next
             );
         }
     }
+    assert_eq!(header_count, 2);
 }
 
 #[test]
@@ -394,12 +393,8 @@ fn hunk_header_indented_to_source_text_column() {
     let input = "diff --git a/x.ts b/x.ts\nindex abc..def 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1,2 +1,2 @@\n-const a = 1;\n+const a = 2;\n@@ -10,2 +10,2 @@\n const b = 3;\n-const c = 4;\n+const c = 5;\n";
     let out = render(input, &opts());
     let plain = strip_ansi(&out);
-    let hunk_line = plain
-        .lines()
-        .find(|l| l.trim_start().starts_with("@@"))
-        .unwrap();
-    let leading_spaces = hunk_line.len() - hunk_line.trim_start().len();
-    assert_eq!(leading_spaces, 13);
+    let hunk_line = plain.lines().find(|line| line.contains("@@")).unwrap();
+    assert_eq!(hunk_line.chars().position(|c| c == '@'), Some(13));
 }
 
 #[test]
@@ -409,10 +404,7 @@ fn hunk_header_indent_without_line_numbers() {
     o.no_line_numbers = true;
     let out = render(input, &o);
     let plain = strip_ansi(&out);
-    let hunk_line = plain
-        .lines()
-        .find(|l| l.trim_start().starts_with("@@"))
-        .unwrap();
+    let hunk_line = plain.lines().find(|line| line.contains("@@")).unwrap();
     let leading_spaces = hunk_line.len() - hunk_line.trim_start().len();
     assert_eq!(leading_spaces, 2);
 }
@@ -424,11 +416,8 @@ fn hunk_header_row_fills_width() {
     o.width = 60;
     let out = render(input, &o);
     let plain = strip_ansi(&out);
-    let hunk_line = plain
-        .lines()
-        .find(|l| l.trim_start().starts_with("@@"))
-        .unwrap();
-    assert_eq!(hunk_line.len(), 60);
+    let hunk_line = plain.lines().find(|line| line.contains("@@")).unwrap();
+    assert_eq!(hunk_line.chars().count(), 60);
 }
 
 #[test]
@@ -439,12 +428,71 @@ fn hunk_header_full_row_has_background() {
     let out = render(input, &o);
     let hunk_bg = "48;2;13;44;69";
     let lines: Vec<&str> = out.split('\n').collect();
-    let hunk_line = lines
-        .iter()
-        .find(|l| l.contains("@@"))
-        .unwrap();
+    let hunk_line = lines.iter().find(|l| l.contains("@@")).unwrap();
     let stripped = strip_ansi(hunk_line);
-    assert_eq!(stripped.len(), 50);
+    assert_eq!(stripped.chars().count(), 50);
     let bg_count = hunk_line.matches(hunk_bg).count();
-    assert!(bg_count >= 2, "hunk_bg should cover indent + text + padding");
+    assert!(
+        bg_count >= 2,
+        "hunk_bg should cover indent + text + padding"
+    );
+}
+
+#[test]
+fn hunk_header_uses_start_indicator_at_start_of_file() {
+    let input = "diff --git a/x.ts b/x.ts\n--- a/x.ts\n+++ b/x.ts\n@@ -1,2 +1,2 @@\n-old\n+new\n@@ -10,1 +10,1 @@\n-old ten\n+new ten\n";
+    let plain = strip_ansi(&render(input, &opts()));
+    let hunk_line = plain.lines().find(|line| line.contains("@@ -1,2")).unwrap();
+    assert_eq!(
+        hunk_line.chars().take(13).collect::<String>(),
+        "   󰇘         "
+    );
+}
+
+#[test]
+fn hunk_header_uses_up_indicator_for_hidden_context_above() {
+    let input = "diff --git a/x.ts b/x.ts\n--- a/x.ts\n+++ b/x.ts\n@@ -10,1 +10,1 @@\n-old\n+new\n";
+    let plain = strip_ansi(&render(input, &opts()));
+    let hunk_line = plain.lines().find(|line| line.contains("@@")).unwrap();
+    assert_eq!(
+        hunk_line.chars().take(13).collect::<String>(),
+        "   ↑         "
+    );
+}
+
+#[test]
+fn hunk_header_uses_both_indicator_for_hidden_context_on_both_sides() {
+    let input = "diff --git a/x.ts b/x.ts\n--- a/x.ts\n+++ b/x.ts\n@@ -10,1 +10,1 @@\n-old ten\n+new ten\n@@ -30,1 +30,1 @@\n-old thirty\n+new thirty\n";
+    let plain = strip_ansi(&render(input, &opts()));
+    let hunk_line = plain
+        .lines()
+        .find(|line| line.contains("@@ -10,1"))
+        .unwrap();
+    assert_eq!(
+        hunk_line.chars().take(13).collect::<String>(),
+        "   󰹹         "
+    );
+    assert_eq!(hunk_line.chars().position(|c| c == '@'), Some(13));
+}
+
+#[test]
+fn hunk_header_uses_down_indicator_when_only_context_below_is_proven() {
+    let input = "diff --git a/x.ts b/x.ts\n--- a/x.ts\n+++ b/x.ts\n@@ -1,1 +1,1 @@\n-old one\n+new one\n@@ -2,1 +2,1 @@\n-old two\n+new two\n@@ -10,1 +10,1 @@\n-old ten\n+new ten\n";
+    let plain = strip_ansi(&render(input, &opts()));
+    let hunk_line = plain.lines().find(|line| line.contains("@@ -2,1")).unwrap();
+    assert_eq!(
+        hunk_line.chars().take(13).collect::<String>(),
+        "   ↓         "
+    );
+}
+
+#[test]
+fn hunk_header_omits_indicator_when_direction_is_unknown() {
+    let input = "diff --git a/x.ts b/x.ts\n--- a/x.ts\n+++ b/x.ts\n@@ -1,1 +1,1 @@\n-old one\n+new one\n@@ -2,1 +2,1 @@\n-old two\n+new two\n";
+    let plain = strip_ansi(&render(input, &opts()));
+    let hunk_line = plain.lines().find(|line| line.contains("@@ -2,1")).unwrap();
+    assert_eq!(
+        hunk_line.chars().take(13).collect::<String>(),
+        "             "
+    );
 }

@@ -247,7 +247,9 @@ impl SyntaxHighlighter {
     pub fn highlight(&mut self, source: &str, syntax: Syntax) -> Option<Vec<Vec<Token>>> {
         let config = self.config.as_mut()?;
         let mut highlighter = Highlighter::new();
-        let events = highlighter.highlight(config, source.as_bytes(), None, |_| None).ok()?;
+        let events = highlighter
+            .highlight(config, source.as_bytes(), None, |_| None)
+            .ok()?;
         let mut lines: Vec<Vec<Token>> = vec![Vec::new()];
         let mut active: Option<u32> = None;
         for event in events.flatten() {
@@ -332,26 +334,11 @@ pub fn make_for_ext(ext: &str) -> Option<HighlightConfiguration> {
             tree_sitter_typescript::LANGUAGE_TSX.into(),
             q::TSX_HIGHLIGHTS,
         ),
-        "js" | "jsx" => (
-            tree_sitter_javascript::LANGUAGE.into(),
-            q::JS_HIGHLIGHTS,
-        ),
-        "rs" => (
-            tree_sitter_rust::LANGUAGE.into(),
-            q::RUST_HIGHLIGHTS,
-        ),
-        "py" => (
-            tree_sitter_python::LANGUAGE.into(),
-            q::PYTHON_HIGHLIGHTS,
-        ),
-        "go" => (
-            tree_sitter_go::LANGUAGE.into(),
-            q::GO_HIGHLIGHTS,
-        ),
-        "json" => (
-            tree_sitter_json::LANGUAGE.into(),
-            q::JSON_HIGHLIGHTS,
-        ),
+        "js" | "jsx" => (tree_sitter_javascript::LANGUAGE.into(), q::JS_HIGHLIGHTS),
+        "rs" => (tree_sitter_rust::LANGUAGE.into(), q::RUST_HIGHLIGHTS),
+        "py" => (tree_sitter_python::LANGUAGE.into(), q::PYTHON_HIGHLIGHTS),
+        "go" => (tree_sitter_go::LANGUAGE.into(), q::GO_HIGHLIGHTS),
+        "json" => (tree_sitter_json::LANGUAGE.into(), q::JSON_HIGHLIGHTS),
         "css" => (
             tree_sitter_css::LANGUAGE.into(),
             tree_sitter_css::HIGHLIGHTS_QUERY,
@@ -360,10 +347,7 @@ pub fn make_for_ext(ext: &str) -> Option<HighlightConfiguration> {
             tree_sitter_html::LANGUAGE.into(),
             tree_sitter_html::HIGHLIGHTS_QUERY,
         ),
-        "sh" | "bash" => (
-            tree_sitter_bash::LANGUAGE.into(),
-            q::BASH_HIGHLIGHTS,
-        ),
+        "sh" | "bash" => (tree_sitter_bash::LANGUAGE.into(), q::BASH_HIGHLIGHTS),
         "md" | "mdx" => return None,
         "dockerfile" => return None,
         "makefile" => return None,
@@ -496,10 +480,7 @@ pub fn parse_hunk(lines: &[&str], start: usize) -> (Hunk, usize) {
     let (old_start, new_start) = parse_hunk_numbers(&header);
     let mut body = Vec::new();
     let mut i = start + 1;
-    while i < lines.len()
-        && !lines[i].starts_with("@@ ")
-        && !lines[i].starts_with("diff --git ")
-    {
+    while i < lines.len() && !lines[i].starts_with("@@ ") && !lines[i].starts_with("diff --git ") {
         let raw = lines[i];
         if raw.starts_with('\\') {
             body.push(DiffLine {
@@ -616,10 +597,15 @@ pub fn render_file(file: &FileDiff, out: &mut String, theme: Theme, options: &Re
         State::Normal => None,
     };
 
-    let bg_line = paint(&" ".repeat(width), Some(theme.header_bg), None, false, false);
+    let bg_line = paint(
+        &" ".repeat(width),
+        Some(theme.header_bg),
+        None,
+        false,
+        false,
+    );
 
-    let prefix_len =
-        char_count(&format!("{} {}", icons::file_icon(&file.name), display));
+    let prefix_len = char_count(&format!("{} {}", icons::file_icon(&file.name), display));
 
     let mut stats_parts: Vec<(String, u32, bool)> = Vec::new();
     if let Some(l) = label {
@@ -708,15 +694,21 @@ pub fn render_file(file: &FileDiff, out: &mut String, theme: Theme, options: &Re
         }
     }
 
-    for hunk in &file.hunks {
+    for (hunk_index, hunk) in file.hunks.iter().enumerate() {
         if !should_hide_hunk_header(file, hunk) {
-            let hunk_indent = if options.no_line_numbers { 2 } else { 13 };
+            let indicator = if options.no_line_numbers {
+                ""
+            } else {
+                hunk_indicator(&file.hunks, hunk_index)
+            };
+            let hunk_prefix = hunk_prefix(indicator, !options.no_line_numbers);
+            let hunk_indent = char_count(&hunk_prefix);
             let hunk_text_len = char_count(&hunk.header);
-            let padding_after = width.saturating_sub(hunk_indent + hunk_text_len).max(0);
+            let padding_after = width.saturating_sub(hunk_indent + hunk_text_len);
             out.push_str(&paint(
-                &" ".repeat(hunk_indent),
+                &hunk_prefix,
                 Some(theme.hunk_bg),
-                None,
+                Some(theme.hunk_fg),
                 false,
                 false,
             ));
@@ -783,6 +775,68 @@ pub fn render_file(file: &FileDiff, out: &mut String, theme: Theme, options: &Re
     }
 }
 
+const HUNK_INDENT: usize = 13;
+const HUNK_INDICATOR_OFFSET: usize = 3;
+const HUNK_START_INDICATOR: &str = "󰇘";
+const HUNK_BOTH_INDICATOR: &str = "󰹹";
+
+fn hunk_prefix(indicator: &str, line_numbers: bool) -> String {
+    if !line_numbers {
+        return "  ".to_string();
+    }
+
+    let indicator_width = char_count(indicator);
+    format!(
+        "{}{}{}",
+        " ".repeat(HUNK_INDICATOR_OFFSET),
+        indicator,
+        " ".repeat(HUNK_INDENT.saturating_sub(HUNK_INDICATOR_OFFSET + indicator_width))
+    )
+}
+
+fn hunk_indicator(hunks: &[Hunk], index: usize) -> &'static str {
+    let hunk = &hunks[index];
+    if hunk.old_start <= 1 && hunk.new_start <= 1 {
+        return HUNK_START_INDICATOR;
+    }
+
+    let hidden_above = if index == 0 {
+        hunk.old_start > 1 || hunk.new_start > 1
+    } else {
+        has_hidden_gap(&hunks[index - 1], hunk)
+    };
+    let hidden_below = hunks
+        .get(index + 1)
+        .is_some_and(|next| has_hidden_gap(hunk, next));
+
+    match (hidden_above, hidden_below) {
+        (true, true) => HUNK_BOTH_INDICATOR,
+        (true, false) => "↑",
+        (false, true) => "↓",
+        (false, false) => "",
+    }
+}
+
+fn has_hidden_gap(previous: &Hunk, next: &Hunk) -> bool {
+    let (old_count, new_count) = hunk_line_counts(previous);
+    next.old_start > previous.old_start + old_count
+        || next.new_start > previous.new_start + new_count
+}
+
+fn hunk_line_counts(hunk: &Hunk) -> (usize, usize) {
+    let old_count = hunk
+        .lines
+        .iter()
+        .filter(|line| matches!(line.kind, Kind::Context | Kind::Deletion))
+        .count();
+    let new_count = hunk
+        .lines
+        .iter()
+        .filter(|line| matches!(line.kind, Kind::Context | Kind::Addition))
+        .count();
+    (old_count, new_count)
+}
+
 pub fn render_stats(parts: &[(String, u32, bool)], theme: Theme) -> String {
     let mut out = String::new();
     for (i, (text, color, bold)) in parts.iter().enumerate() {
@@ -839,13 +893,7 @@ pub fn render_line(
         _ => t.rail,
     };
     let rail_bold = line.kind != Kind::Context;
-    out.push_str(&paint(
-        "▌",
-        None,
-        Some(rail_color),
-        rail_bold,
-        !rail_bold,
-    ));
+    out.push_str(&paint("▌", None, Some(rail_color), rail_bold, !rail_bold));
 
     if numbers {
         let old_s = old.map(|n| pad(n, 4)).unwrap_or_else(|| "    ".into());
@@ -872,19 +920,11 @@ pub fn render_line(
         out.push_str(&paint(
             &format!("{}{}│ ", old_s, format!(" {}", new_s)),
             old_bg,
-            Some(if old_active {
-                t.del_accent
-            } else {
-                t.meta_fg
-            }),
+            Some(if old_active { t.del_accent } else { t.meta_fg }),
             old_active,
             !old_active,
         ));
-        let new_fg = if new_active {
-            t.add_accent
-        } else {
-            t.meta_fg
-        };
+        let new_fg = if new_active { t.add_accent } else { t.meta_fg };
         out.push_str(&paint("", new_bg, Some(new_fg), new_active, !new_active));
     }
 
@@ -893,13 +933,7 @@ pub fn render_line(
         Kind::Deletion => ('-', Some(t.del_bg), t.del_accent, true),
         _ => (' ', None, t.meta_fg, false),
     };
-    out.push_str(&paint(
-        &prefix.to_string(),
-        bg,
-        Some(fg),
-        mark_bold,
-        false,
-    ));
+    out.push_str(&paint(&prefix.to_string(), bg, Some(fg), mark_bold, false));
 
     if tokens.is_empty() {
         out.push_str(&paint(&line.text, bg, Some(fg), false, false));
@@ -951,12 +985,7 @@ fn should_hide_hunk_header(file: &FileDiff, hunk: &Hunk) -> bool {
         && declared_new_start == Some(hunk.new_start)
 }
 
-fn parse_hunk_specs(header: &str) -> (
-    Option<usize>,
-    usize,
-    Option<usize>,
-    usize,
-) {
+fn parse_hunk_specs(header: &str) -> (Option<usize>, usize, Option<usize>, usize) {
     let parts: Vec<&str> = header.split_whitespace().collect();
     let old = parts.get(1).unwrap_or(&"");
     let new = parts.get(2).unwrap_or(&"");
@@ -969,10 +998,7 @@ fn parse_old_spec(spec: &str) -> (usize, usize) {
     let trimmed = spec.trim_start_matches('-');
     let mut split = trimmed.splitn(2, ',');
     let start = split.next().unwrap_or("1").parse().unwrap_or(1);
-    let count = split
-        .next()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(1);
+    let count = split.next().and_then(|s| s.parse().ok()).unwrap_or(1);
     (start, count)
 }
 
@@ -980,9 +1006,6 @@ fn parse_new_spec(spec: &str) -> (usize, usize) {
     let trimmed = spec.trim_start_matches('+');
     let mut split = trimmed.splitn(2, ',');
     let start = split.next().unwrap_or("1").parse().unwrap_or(1);
-    let count = split
-        .next()
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(1);
+    let count = split.next().and_then(|s| s.parse().ok()).unwrap_or(1);
     (start, count)
 }
