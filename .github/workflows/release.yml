@@ -48,7 +48,6 @@ jobs:
       - name: Prepare archive
         run: |
           chmod +x difftonic
-          cp README.md LICENSE ./
           tar czf difftonic-${{ github.ref_name }}-universal-apple-darwin.tar.gz difftonic README.md LICENSE
 
       - name: Compute checksum
