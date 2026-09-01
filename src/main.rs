@@ -6,7 +6,7 @@ use terminal_size::{terminal_size, Width};
 #[derive(Parser, Debug)]
 #[command(
     name = "difftonic",
-    version = "0.3.0",
+    version,
     about = "Fast syntax-highlighted terminal diff renderer"
 )]
 struct Args {

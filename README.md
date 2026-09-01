@@ -21,11 +21,20 @@ stdin (git diff text)
 
 ## Install
 
+### Homebrew (macOS)
+
 ```sh
-cargo install --path .
+brew tap dantehemerson/tap
+brew install difftonic
 ```
 
-Or build locally:
+### Cargo
+
+```sh
+cargo install difftonic
+```
+
+### Build locally
 
 ```sh
 cargo build --release
