@@ -5,6 +5,9 @@ Fast, syntax-highlighted Git diff renderer designed for use as a LazyGit `diffRe
 Reads a `git diff` patch from stdin, parses it, tokenizes each code line via
 tree-sitter, and emits an ANSI-colored, gutter-numbered unified diff to stdout.
 
+<img width="1624" height="1205" alt="Screenshot 2026-09-01 at 1 03 19 AM" src="https://github.com/user-attachments/assets/e6eaad68-b320-4f55-92e5-fa7b45c9a421" />
+
+
 ## Features
 
 - 🚀 **Lightning Fast** — Straight ANSI output with no async overhead
