@@ -78,6 +78,7 @@ jobs:
         env:
           TAG: ${{ github.ref_name }}
         run: |
+          VERSION="${TAG#v}"
           ASSET_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/difftonic-${TAG}-universal-apple-darwin.tar.gz"
           EXPECTED_SHA=$(curl -fsSL "https://github.com/${{ github.repository }}/releases/download/${TAG}/difftonic-${TAG}-universal-apple-darwin.tar.gz.sha256" | awk '{print $1}')
           mkdir -p Formula
@@ -85,7 +86,7 @@ jobs:
           class Difftonic < Formula
             desc "Fast syntax-highlighted terminal diff renderer for LazyGit"
             homepage "https://github.com/dantehemerson/difftonic"
-            version "${TAG}"
+            version "${VERSION}"
             license "MIT"
 
             on_macos do
@@ -111,7 +112,7 @@ jobs:
             end
           end
           FORMULA
-          sed -i '' 's/^          //' Formula/difftonic.rb
+          sed -i 's/^          //' Formula/difftonic.rb
 
       - name: Commit and push
         run: |
