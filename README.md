@@ -24,8 +24,7 @@ stdin (git diff text)
 ### Homebrew (macOS)
 
 ```sh
-brew tap dantehemerson/tap
-brew install difftonic
+brew install dantehemerson/tap/difftonic
 ```
 
 ### Cargo
