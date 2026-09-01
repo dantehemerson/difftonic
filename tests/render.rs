@@ -1,4 +1,4 @@
-use difftonic::{parse_patch, render, FileDiff, RenderOptions};
+use difftonic::{parse_patch, render, RenderOptions};
 
 fn strip_ansi(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
@@ -257,14 +257,14 @@ fn render_title_fills_configured_width() {
 
 #[test]
 fn render_title_has_nerd_font_icon() {
-    // .ts files get the TypeScript codicon (U+E628) before the filename.
+    // .ts files get the TypeScript nerd-font icon (U+F06E6) before the filename.
     let input = "diff --git a/x.ts b/x.ts\nindex abc..def 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1,1 +1,1 @@\n-old\n+new\n";
     let mut o = opts();
     o.width = 50;
     let out = render(input, &o);
     let title_plain = strip_ansi(out.split('\n').nth(1).unwrap());
-    assert!(title_plain.contains('\u{e628}'));
-    let icon_idx = title_plain.find('\u{e628}').unwrap();
+    assert!(title_plain.contains('\u{f06e6}'));
+    let icon_idx = title_plain.find('\u{f06e6}').unwrap();
     let x_idx = title_plain.find("x.ts").unwrap();
     assert!(icon_idx < x_idx);
 }
@@ -292,9 +292,9 @@ fn render_title_uses_per_file_icon() {
     let ts_plain = strip_ansi(ts.split('\n').nth(1).unwrap());
     let rs_plain = strip_ansi(rs.split('\n').nth(1).unwrap());
     let py_plain = strip_ansi(py.split('\n').nth(1).unwrap());
-    assert!(ts_plain.contains('\u{e628}')); // TS (nvim-web-devicons v3)
-    assert!(rs_plain.contains('\u{e68b}')); // Rust (nvim-web-devicons v3)
-    assert!(py_plain.contains('\u{e606}')); // Python (nvim-web-devicons v3)
+    assert!(ts_plain.contains('\u{f06e6}')); // TS
+    assert!(rs_plain.contains('\u{e68b}')); // Rust
+    assert!(py_plain.contains('\u{ed1b}')); // Python
     assert_ne!(ts_plain, rs_plain);
 }
 

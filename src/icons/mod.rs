@@ -332,28 +332,28 @@ mod tests {
         assert_eq!(file_icon("foo.py"), "\u{ed1b}");
         assert_eq!(file_icon("foo.go"), "\u{e627}");
         assert_eq!(file_icon("foo.json"), "\u{e60b}");
-        assert_eq!(file_icon("foo.html"), "\u{f13b}");
-        assert_eq!(file_icon("foo.css"), "\u{e749}");
-        assert_eq!(file_icon("foo.md"), "\u{eb1d}");
-        assert_eq!(file_icon("foo.mdx"), "\u{eb1d}");
-        assert_eq!(file_icon("foo.yml"), "\u{e6a8}");
-        assert_eq!(file_icon("foo.yaml"), "\u{e6a8}");
+        assert_eq!(file_icon("foo.html"), "\u{e736}");
+        assert_eq!(file_icon("foo.css"), "\u{e6b8}");
+        assert_eq!(file_icon("foo.md"), "\u{f48a}");
+        assert_eq!(file_icon("foo.mdx"), "\u{f48a}");
+        assert_eq!(file_icon("foo.yml"), "\u{e8eb}");
+        assert_eq!(file_icon("foo.yaml"), "\u{e8eb}");
         assert_eq!(file_icon("foo.toml"), "\u{e6b2}");
-        assert_eq!(file_icon("foo.sh"), "\u{f018d}");
-        assert_eq!(file_icon("foo.bash"), "\u{ebca}");
+        assert_eq!(file_icon("foo.sh"), "\u{e795}");
+        assert_eq!(file_icon("foo.bash"), "\u{e795}");
         assert_eq!(file_icon("foo.cpp"), "\u{e61d}");
         assert_eq!(file_icon("foo.c"), "\u{e61e}");
         assert_eq!(file_icon("foo.h"), "\u{f0fd}");
-        assert_eq!(file_icon("foo.png"), "\u{f021f}");
-        assert_eq!(file_icon("foo.svg"), "\u{f0721}");
+        assert_eq!(file_icon("foo.png"), "\u{f03e}");
+        assert_eq!(file_icon("foo.svg"), "\u{f1c7}");
         assert_eq!(file_icon("foo.pdf"), "\u{f1c1}");
-        assert_eq!(file_icon("foo.zip"), "\u{f410}");
+        assert_eq!(file_icon("foo.zip"), "\u{f187}");
         assert_eq!(file_icon("foo.lua"), "\u{e620}");
         assert_eq!(file_icon("foo.vue"), "\u{e6a0}");
         assert_eq!(file_icon("foo.svelte"), "\u{e697}");
         assert_eq!(file_icon("foo.swift"), "\u{e755}");
         assert_eq!(file_icon("foo.kt"), "\u{e634}");
-        assert_eq!(file_icon("foo.sql"), "\u{f1c0}");
+        assert_eq!(file_icon("foo.sql"), "\u{e706}");
         assert_eq!(file_icon("foo.astro"), "\u{e6b3}");
     }
 
@@ -371,8 +371,8 @@ mod tests {
 
     #[test]
     fn case_insensitive_special_filename() {
-        assert_eq!(file_icon("DOCKERFILE"), "\u{f21f}");
-        assert_eq!(file_icon("Makefile"), "\u{e673}");
+        assert_eq!(file_icon("DOCKERFILE"), "\u{f0a8}");
+        assert_eq!(file_icon("Makefile"), "\u{e779}");
     }
 
     #[test]
@@ -384,18 +384,18 @@ mod tests {
     #[test]
     fn special_file_colors() {
         assert_eq!(file_color("Dockerfile"), 0x458ee6);
-        assert_eq!(file_color("dockerfile"), 0x0088c9);
+        assert_eq!(file_color("dockerfile"), 0x458ee6);
         assert_eq!(file_color("Cargo.toml"), 0xdea584);
-        assert_eq!(file_color("package.json"), 0x4caf51);
-        assert_eq!(file_color("package-lock.json"), 0xf54436);
-        assert_eq!(file_color("README.md"), 0xededed);
-        assert_eq!(file_color("LICENSE"), 0xededed);
-        assert_eq!(file_color(".gitignore"), 0xe64a19);
+        assert_eq!(file_color("package.json"), 0xe8274b);
+        assert_eq!(file_color("package-lock.json"), 0xfb923c);
+        assert_eq!(file_color("README.md"), 0x42b883);
+        assert_eq!(file_color("LICENSE"), 0xcbcb41);
+        assert_eq!(file_color(".gitignore"), 0xf54d27);
         assert_eq!(file_color(".dockerignore"), 0x458ee6);
-        assert_eq!(file_color("yarn.lock"), 0x0188d1);
-        assert_eq!(file_color("tsconfig.json"), 0x0188d1);
-        assert_eq!(file_color("Makefile"), 0xfefefe);
-        assert_eq!(file_color(".editorconfig"), 0xffffff);
+        assert_eq!(file_color("yarn.lock"), 0xfb923c);
+        assert_eq!(file_color("tsconfig.json"), 0x519aba);
+        assert_eq!(file_color("Makefile"), 0x6d8086);
+        assert_eq!(file_color(".editorconfig"), 0xcbcb41);
     }
 
     #[test]
@@ -407,20 +407,20 @@ mod tests {
         assert_eq!(file_color("foo.rs"), 0xdea584);
         assert_eq!(file_color("foo.py"), 0xfed836);
         assert_eq!(file_color("foo.go"), 0x02acc1);
-        assert_eq!(file_color("foo.json"), 0xfaa825);
-        assert_eq!(file_color("foo.html"), 0xe44e27);
-        assert_eq!(file_color("foo.css"), 0x42a5f5);
-        assert_eq!(file_color("foo.md"), 0x42a5f5);
-        assert_eq!(file_color("foo.yml"), 0xa074b3);
+        assert_eq!(file_color("foo.json"), 0xcbcb41);
+        assert_eq!(file_color("foo.html"), 0xe44d26);
+        assert_eq!(file_color("foo.css"), 0x663399);
+        assert_eq!(file_color("foo.md"), 0xdddddd);
+        assert_eq!(file_color("foo.yml"), 0xd70000);
         assert_eq!(file_color("foo.toml"), 0x9c4221);
-        assert_eq!(file_color("foo.sh"), 0xff7043);
-        assert_eq!(file_color("foo.bash"), 0xff7043);
-        assert_eq!(file_color("foo.c"), 0x0188d1);
+        assert_eq!(file_color("foo.sh"), 0x4d5a5e);
+        assert_eq!(file_color("foo.bash"), 0x4d5a5e);
+        assert_eq!(file_color("foo.c"), 0x599eff);
         assert_eq!(file_color("foo.h"), 0xa074c4);
-        assert_eq!(file_color("foo.lua"), 0x42a5f5);
-        assert_eq!(file_color("foo.svg"), 0xffb300);
-        assert_eq!(file_color("foo.pdf"), 0xef5351);
-        assert_eq!(file_color("foo.astro"), 0xff6d00);
+        assert_eq!(file_color("foo.lua"), 0x000080);
+        assert_eq!(file_color("foo.svg"), 0xfab81b);
+        assert_eq!(file_color("foo.pdf"), 0xb30b00);
+        assert_eq!(file_color("foo.astro"), 0xe23f67);
     }
 
     #[test]

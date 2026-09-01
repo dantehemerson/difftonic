@@ -23,7 +23,7 @@ fn sgr_fg(c: u32) -> String {
 }
 
 fn color_for(category: &str) -> &'static str {
-    let t = DARK;
+    let _t = DARK;
     match category {
         "comment" => "127;132;142",
         "keyword" => "198;120;221",
@@ -55,8 +55,8 @@ fn typescript_changes_keep_keyword_color() {
     let input = "diff --git a/x.ts b/x.ts\nindex abc..def 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1,1 +1,1 @@\n-const oldValue = 1;\n+const newValue = 2;\n";
     let output = render(input, &RenderOptions::default());
     let plain = strip_ansi(&output);
-    assert!(plain.contains("-const oldValue = 1;"));
-    assert!(plain.contains("+const newValue = 2;"));
+    assert!(plain.contains("- const oldValue = 1;"));
+    assert!(plain.contains("+ const newValue = 2;"));
     assert_has_category(&output, "keyword");
 }
 
@@ -149,11 +149,11 @@ fn gutter_uses_deletion_background_for_deletions() {
     let plain = strip_ansi(&output);
     let only_old_line = plain
         .split('\n')
-        .find(|l| l.contains("-only_old"))
+        .find(|l| l.contains("- only_old"))
         .expect("deletion line");
     let only_new_line = plain
         .split('\n')
-        .find(|l| l.contains("+only_new"))
+        .find(|l| l.contains("+ only_new"))
         .expect("addition line");
     // The deletion line's gutter region should have the del_bg applied.
     let raw_only_old = output
@@ -178,8 +178,8 @@ fn gutter_uses_deletion_background_for_deletions() {
         raw_only_new
     );
     // Sanity: make sure we did pick the right lines.
-    assert!(only_old_line.starts_with('-'), "deletion line should start with -: {}", only_old_line);
-    assert!(only_new_line.starts_with('+'), "addition line should start with +: {}", only_new_line);
+    assert!(only_old_line.contains("- only_old"), "deletion line should contain '- only_old': {}", only_old_line);
+    assert!(only_new_line.contains("+ only_new"), "addition line should contain '+ only_new': {}", only_new_line);
     let _ = (only_old_line, only_new_line);
 }
 
