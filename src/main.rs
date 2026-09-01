@@ -12,7 +12,7 @@ use terminal_size::{terminal_size, Width};
 struct Args {
     #[arg(long, alias = "shiki-theme", default_value = "github-dark-default")]
     syntax_theme: String,
-    #[arg(long, default_value = "auto", value_parser = ["dark", "light", "auto", "system"])]
+    #[arg(long, default_value = "auto", value_parser = ["dark", "light", "auto", "system", "adaptive"])]
     theme: String,
     #[arg(long)]
     no_line_numbers: bool,

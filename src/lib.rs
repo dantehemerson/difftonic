@@ -40,6 +40,7 @@ impl Default for RenderOptions {
 pub struct Theme {
     pub meta_bg: u32,
     pub meta_fg: u32,
+    pub code_bg: u32,
     pub hunk_bg: u32,
     pub hunk_fg: u32,
     pub hunk_gutter_bg: u32,
@@ -87,6 +88,7 @@ pub struct Syntax {
 pub const DARK: Theme = Theme {
     meta_bg: 0x1f2228,
     meta_fg: 0x9da0a6,
+    code_bg: 0x0d1117,
     hunk_bg: 0x0d2c45,
     hunk_fg: 0x8b949e,
     hunk_gutter_bg: 0x164a70,
@@ -131,6 +133,7 @@ pub const DARK: Theme = Theme {
 pub const LIGHT: Theme = Theme {
     meta_bg: 0xe6e6e6,
     meta_fg: 0x555555,
+    code_bg: 0xffffff,
     hunk_bg: 0xb6dcf5,
     hunk_fg: 0x57606a,
     hunk_gutter_bg: 0x9fc9eb,
@@ -563,6 +566,10 @@ pub fn resolve_theme(options: &RenderOptions) -> Theme {
         let light = is_light_theme(&options.syntax_theme);
         return system_theme::detect(light).unwrap_or(if light { LIGHT } else { DARK });
     }
+    if options.theme == "adaptive" {
+        let light = is_light_theme(&options.syntax_theme);
+        return system_theme::detect_adaptive(light).unwrap_or(if light { LIGHT } else { DARK });
+    }
     let light = options.theme == "light"
         || (options.theme == "auto" && is_light_theme(&options.syntax_theme));
     if light {
@@ -706,7 +713,8 @@ pub fn render_file(file: &FileDiff, out: &mut String, theme: Theme, options: &Re
         .hunks
         .iter()
         .flat_map(|h| &h.lines)
-        .filter(|l| l.kind != Kind::NoNewline && l.kind != Kind::Context)
+        .filter(|l| l.kind != Kind::NoNewline)
+        .filter(|l| options.full || l.kind != Kind::Context)
         .map(|l| l.text.as_str())
         .collect::<Vec<&str>>()
         .join("\n");
@@ -733,14 +741,14 @@ pub fn render_file(file: &FileDiff, out: &mut String, theme: Theme, options: &Re
                 Some(theme.hunk_gutter_bg),
                 Some(theme.hunk_fg),
                 false,
-                false,
+                true,
             ));
             out.push_str(&paint(
                 &hunk.header,
                 Some(theme.hunk_bg),
                 Some(theme.hunk_fg),
                 false,
-                false,
+                true,
             ));
             out.push_str(&paint(
                 &" ".repeat(padding_after),
@@ -951,19 +959,19 @@ pub fn render_line(
     let (marker, code_bg, fg) = match line.kind {
         Kind::Addition => ("+ ", Some(t.add_bg), t.add_accent),
         Kind::Deletion => ("- ", Some(t.del_bg), t.del_accent),
-        _ => ("  ", None, t.meta_fg),
+        _ => ("  ", Some(t.code_bg), t.syntax.default),
     };
-    out.push_str(&paint(marker, gutter_bg, Some(fg), false, false));
+    out.push_str(&paint(marker, gutter_bg, Some(fg), false, line.kind == Kind::Context));
 
     if tokens.is_empty() {
-        out.push_str(&paint(&line.text, code_bg, Some(fg), false, false));
+        out.push_str(&paint(&line.text, code_bg, Some(fg), false, line.kind == Kind::Context));
     } else {
         for tok in tokens {
-            out.push_str(&paint(&tok.text, code_bg, Some(tok.color), false, false));
+            out.push_str(&paint(&tok.text, code_bg, Some(tok.color), false, line.kind == Kind::Context));
         }
     }
 
-    if matches!(line.kind, Kind::Addition | Kind::Deletion) {
+    if matches!(line.kind, Kind::Context | Kind::Addition | Kind::Deletion) {
         let used = char_count(&out);
         if used < width {
             let pad_bg = code_bg;

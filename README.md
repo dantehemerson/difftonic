@@ -41,7 +41,7 @@ diffview [options] < patch
 | Flag                    | Description                                                                                | Default              |
 | ----------------------- | ------------------------------------------------------------------------------------------ | -------------------- |
 | `--syntax-theme <id>`   | tree-sitter theme id for code highlighting.                                                | `github-dark-default`|
-| `--theme <name>`        | Diff color theme: `dark`, `light`, `auto`, or `system` (uses the terminal palette).          | `auto`               |
+| `--theme <name>`        | Diff color theme: `dark`, `light`, `auto`, `system`, or `adaptive`.                          | `auto`               |
 | `--no-line-numbers`     | Hide line number gutter.                                                                   | (shown)              |
 | `--full`                | Highlight context lines too (default: changed lines only).                                 | off                  |
 | `-w, --width <n>`       | Width for title bar and layout. Auto-detected from terminal.                               | terminal width       |
@@ -54,6 +54,7 @@ diffview [options] < patch
 git diff --no-color | diffview
 git diff --no-color | diffview --theme dark
 git diff --no-color | diffview --theme system
+git diff --no-color | diffview --theme adaptive
 git diff --no-color | diffview --no-line-numbers
 git diff --no-color | diffview -w 120
 ```
@@ -91,14 +92,17 @@ git:
 
 Use the `|` keybinding inside LazyGit to cycle between renderers.
 
-The `system` theme queries the controlling terminal for its foreground,
-background, and ANSI palette when possible. It derives muted UI colors and
-diff backgrounds from those values. When exact palette queries are unavailable,
-including in LazyGit's renderer PTY, it combines terminal-native ANSI colors
-with subtle built-in dark or light diff backgrounds. The syntax theme selects
-the fallback variant, so use a light syntax theme with a light terminal. The
-complete built-in dark or light theme is only used when terminal coloring is
-unavailable.
+The `system` theme uses terminal-native ANSI colors for syntax and accents, so
+the terminal's configured palette is preserved both directly and inside
+LazyGit. It combines those colors with subtle built-in dark or light diff
+backgrounds. The syntax theme selects the background variant, so use a light
+syntax theme with a light terminal. The complete built-in dark or light theme
+is only used when terminal coloring is unavailable.
+
+The `adaptive` theme queries the terminal's foreground, background, and ANSI
+palette, then derives muted surfaces and tinted diff backgrounds from those
+colors. If palette queries are unavailable, including inside LazyGit, it falls
+back to `system`.
 
 ## Output Structure
 

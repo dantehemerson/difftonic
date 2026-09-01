@@ -19,22 +19,85 @@ struct TerminalPalette {
 pub fn detect(light: bool) -> Option<Theme> {
     let term = std::env::var("TERM").ok();
     let in_lazygit = std::env::var_os("LAZYGIT_COLUMNS").is_some();
-    if !allows_color(term.as_deref(), in_lazygit) {
+    select(light, term.as_deref(), in_lazygit)
+}
+
+pub fn detect_adaptive(light: bool) -> Option<Theme> {
+    let term = std::env::var("TERM").ok();
+    let in_lazygit = std::env::var_os("LAZYGIT_COLUMNS").is_some();
+    if term.as_deref() == Some("dumb") && !in_lazygit {
         return None;
     }
-    if term.as_deref() == Some("dumb") {
-        return Some(fallback_theme(light));
-    }
-    if unsafe { libc::isatty(libc::STDOUT_FILENO) } == 1 {
+    if term.as_deref() != Some("dumb") && unsafe { libc::isatty(libc::STDOUT_FILENO) } == 1 {
         if let Some(palette) = query_palette() {
             return Some(generate(palette));
         }
     }
-    Some(fallback_theme(light))
+    Some(system_theme(light))
 }
 
-fn allows_color(term: Option<&str>, in_lazygit: bool) -> bool {
-    term != Some("dumb") || in_lazygit
+fn select(light: bool, term: Option<&str>, in_lazygit: bool) -> Option<Theme> {
+    if term == Some("dumb") && !in_lazygit {
+        return None;
+    }
+    Some(system_theme(light))
+}
+
+fn system_theme(light: bool) -> Theme {
+    let base = if light { LIGHT } else { DARK };
+    let default = DEFAULT_COLOR;
+    let muted = ansi_color(8);
+    let red = ansi_color(1);
+    let green = ansi_color(2);
+    let yellow = ansi_color(3);
+    let blue = ansi_color(4);
+    let magenta = ansi_color(5);
+    let cyan = ansi_color(6);
+
+    Theme {
+        meta_bg: base.meta_bg,
+        meta_fg: muted,
+        code_bg: default,
+        hunk_bg: base.hunk_bg,
+        hunk_fg: base.hunk_fg,
+        hunk_gutter_bg: base.hunk_gutter_bg,
+        header_bg: base.header_bg,
+        header_fg: default,
+        header_muted: muted,
+        separator: muted,
+        add_bg: base.add_bg,
+        del_bg: base.del_bg,
+        add_gutter_bg: base.add_gutter_bg,
+        del_gutter_bg: base.del_gutter_bg,
+        add_accent: green,
+        del_accent: red,
+        syntax: Syntax {
+            comment: muted,
+            keyword: magenta,
+            string: green,
+            string_special: cyan,
+            number: yellow,
+            constant_builtin: red,
+            function: blue,
+            function_method: blue,
+            function_macro: blue,
+            type_: cyan,
+            type_builtin: cyan,
+            constructor: cyan,
+            variable: default,
+            variable_builtin: red,
+            variable_parameter: default,
+            variable_member: default,
+            property: default,
+            module: cyan,
+            operator: cyan,
+            tag: red,
+            attribute: yellow,
+            label: cyan,
+            punctuation: default,
+            default,
+        },
+    }
 }
 
 fn query_palette() -> Option<TerminalPalette> {
@@ -101,62 +164,6 @@ fn query_palette() -> Option<TerminalPalette> {
         background: parsed.background?,
         ansi,
     })
-}
-
-fn fallback_theme(light: bool) -> Theme {
-    let base = if light { LIGHT } else { DARK };
-    let default = DEFAULT_COLOR;
-    let muted = ansi_color(8);
-    let red = ansi_color(1);
-    let green = ansi_color(2);
-    let yellow = ansi_color(3);
-    let blue = ansi_color(4);
-    let magenta = ansi_color(5);
-    let cyan = ansi_color(6);
-
-    Theme {
-        meta_bg: base.meta_bg,
-        meta_fg: muted,
-        hunk_bg: base.hunk_bg,
-        hunk_fg: base.hunk_fg,
-        hunk_gutter_bg: base.hunk_gutter_bg,
-        header_bg: base.header_bg,
-        header_fg: default,
-        header_muted: muted,
-        separator: muted,
-        add_bg: base.add_bg,
-        del_bg: base.del_bg,
-        add_gutter_bg: base.add_gutter_bg,
-        del_gutter_bg: base.del_gutter_bg,
-        add_accent: green,
-        del_accent: red,
-        syntax: Syntax {
-            comment: muted,
-            keyword: magenta,
-            string: green,
-            string_special: cyan,
-            number: yellow,
-            constant_builtin: red,
-            function: blue,
-            function_method: blue,
-            function_macro: blue,
-            type_: cyan,
-            type_builtin: cyan,
-            constructor: cyan,
-            variable: default,
-            variable_builtin: red,
-            variable_parameter: default,
-            variable_member: default,
-            property: default,
-            module: cyan,
-            operator: cyan,
-            tag: red,
-            attribute: yellow,
-            label: cyan,
-            punctuation: default,
-            default,
-        },
-    }
 }
 
 struct TermiosGuard {
@@ -276,6 +283,7 @@ fn generate(palette: TerminalPalette) -> Theme {
     Theme {
         meta_bg: grays[2],
         meta_fg: muted,
+        code_bg: bg,
         hunk_bg: grays[2],
         hunk_fg: grays[7],
         hunk_gutter_bg: grays[3],
@@ -393,6 +401,69 @@ mod tests {
     use super::*;
 
     #[test]
+    fn system_theme_uses_dark_backgrounds_and_terminal_colors() {
+        let theme = system_theme(false);
+        assert_eq!(theme.header_bg, DARK.header_bg);
+        assert_eq!(theme.hunk_bg, DARK.hunk_bg);
+        assert_eq!(theme.add_bg, DARK.add_bg);
+        assert_eq!(theme.del_bg, DARK.del_bg);
+        assert_eq!(theme.header_fg, DEFAULT_COLOR);
+        assert_eq!(theme.add_accent, ansi_color(2));
+        assert_eq!(theme.del_accent, ansi_color(1));
+        assert_eq!(theme.syntax.keyword, ansi_color(5));
+        assert_eq!(theme.syntax.default, DEFAULT_COLOR);
+    }
+
+    #[test]
+    fn system_theme_uses_light_backgrounds() {
+        let theme = system_theme(true);
+        assert_eq!(theme.header_bg, LIGHT.header_bg);
+        assert_eq!(theme.hunk_bg, LIGHT.hunk_bg);
+        assert_eq!(theme.add_bg, LIGHT.add_bg);
+        assert_eq!(theme.del_bg, LIGHT.del_bg);
+    }
+
+    #[test]
+    fn direct_and_lazygit_select_the_same_colors() {
+        let direct = select(false, Some("xterm-256color"), false).unwrap();
+        let lazygit = select(false, Some("dumb"), true).unwrap();
+        assert_eq!(direct.header_bg, lazygit.header_bg);
+        assert_eq!(direct.hunk_bg, lazygit.hunk_bg);
+        assert_eq!(direct.add_bg, lazygit.add_bg);
+        assert_eq!(direct.del_bg, lazygit.del_bg);
+        assert_eq!(direct.add_accent, lazygit.add_accent);
+        assert_eq!(direct.del_accent, lazygit.del_accent);
+        assert_eq!(direct.syntax.keyword, lazygit.syntax.keyword);
+        assert_eq!(direct.syntax.comment, lazygit.syntax.comment);
+    }
+
+    #[test]
+    fn dumb_terminal_without_lazygit_disables_system_colors() {
+        assert!(select(false, Some("dumb"), false).is_none());
+    }
+
+    #[test]
+    fn paint_emits_ansi_and_terminal_default_codes() {
+        let ansi = crate::paint(
+            "text",
+            Some(ansi_color(2)),
+            Some(ansi_color(5)),
+            false,
+            false,
+        );
+        assert!(ansi.contains("48;5;2"));
+        assert!(ansi.contains("38;5;5"));
+        let default = crate::paint(
+            "text",
+            Some(DEFAULT_COLOR),
+            Some(DEFAULT_COLOR),
+            false,
+            false,
+        );
+        assert!(default.contains("49;39"));
+    }
+
+    #[test]
     fn parses_terminal_color_responses() {
         let responses = b"\x1b]10;rgb:dddd/eeee/ffff\x1b\\\x1b]11;rgb:1111/2222/3333\x07\x1b]4;1;rgb:aa/00/11;2;rgb:22/bb/33\x1b\\";
         let parsed = parse_responses(responses).unwrap();
@@ -417,6 +488,7 @@ mod tests {
             ansi,
         });
         assert_eq!(theme.header_fg, 0xd8dee9);
+        assert_eq!(theme.code_bg, 0x20242c);
         assert_eq!(theme.add_accent, 0x55cc77);
         assert_eq!(theme.del_accent, 0xcc5555);
         assert_eq!(theme.syntax.keyword, 0xbb77cc);
@@ -432,56 +504,7 @@ mod tests {
             ansi: ANSI_FALLBACK,
         });
         assert!(luminance(theme.meta_bg) < luminance(0xf4f1ea));
+        assert_eq!(theme.code_bg, 0xf4f1ea);
         assert_eq!(theme.syntax.default, 0x202020);
-    }
-
-    #[test]
-    fn fallback_theme_uses_dark_backgrounds_and_terminal_colors() {
-        let theme = fallback_theme(false);
-        assert_eq!(theme.header_bg, DARK.header_bg);
-        assert_eq!(theme.hunk_bg, DARK.hunk_bg);
-        assert_eq!(theme.add_bg, DARK.add_bg);
-        assert_eq!(theme.del_bg, DARK.del_bg);
-        assert_eq!(theme.header_fg, DEFAULT_COLOR);
-        assert_eq!(theme.add_accent, ansi_color(2));
-        assert_eq!(theme.del_accent, ansi_color(1));
-        assert_eq!(theme.syntax.keyword, ansi_color(5));
-        assert_eq!(theme.syntax.default, DEFAULT_COLOR);
-    }
-
-    #[test]
-    fn fallback_theme_uses_light_backgrounds() {
-        let theme = fallback_theme(true);
-        assert_eq!(theme.header_bg, LIGHT.header_bg);
-        assert_eq!(theme.hunk_bg, LIGHT.hunk_bg);
-        assert_eq!(theme.add_bg, LIGHT.add_bg);
-        assert_eq!(theme.del_bg, LIGHT.del_bg);
-    }
-
-    #[test]
-    fn lazygit_pty_allows_colors_with_dumb_term() {
-        assert!(allows_color(Some("dumb"), true));
-        assert!(!allows_color(Some("dumb"), false));
-    }
-
-    #[test]
-    fn paint_emits_ansi_and_terminal_default_codes() {
-        let ansi = crate::paint(
-            "text",
-            Some(ansi_color(2)),
-            Some(ansi_color(5)),
-            false,
-            false,
-        );
-        assert!(ansi.contains("48;5;2"));
-        assert!(ansi.contains("38;5;5"));
-        let default = crate::paint(
-            "text",
-            Some(DEFAULT_COLOR),
-            Some(DEFAULT_COLOR),
-            false,
-            false,
-        );
-        assert!(default.contains("49;39"));
     }
 }
