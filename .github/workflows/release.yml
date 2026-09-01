@@ -10,7 +10,7 @@ on:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: macos-14
     permissions:
       contents: write
     steps:
@@ -70,14 +70,6 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download archive
-        run: |
-          curl -fsSL "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/difftonic-${{ github.ref_name }}-universal-apple-darwin.tar.gz.sha256" -o checksum.txt
-          EXPECTED_SHA=$(awk '{print $1}' checksum.txt)
-          echo "EXPECTED_SHA=$EXPECTED_SHA" >> "$GITHUB_ENV"
-          ASSET_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/difftonic-${{ github.ref_name }}-universal-apple-darwin.tar.gz"
-          echo "ASSET_URL=$ASSET_URL" >> "$GITHUB_ENV"
-
       - uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/homebrew-tap
@@ -86,19 +78,20 @@ jobs:
       - name: Update formula
         env:
           TAG: ${{ github.ref_name }}
-          ASSET_URL: ${{ env.ASSET_URL }}
-          EXPECTED_SHA: ${{ env.EXPECTED_SHA }}
         run: |
+          ASSET_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/difftonic-${TAG}-universal-apple-darwin.tar.gz"
+          EXPECTED_SHA=$(curl -fsSL "https://github.com/${{ github.repository }}/releases/download/${TAG}/difftonic-${TAG}-universal-apple-darwin.tar.gz.sha256" | awk '{print $1}')
           mkdir -p Formula
-          cat > Formula/difftonic.rb << HEREDOC
+          cat > Formula/difftonic.rb << FORMULA
           class Difftonic < Formula
             desc "Fast syntax-highlighted terminal diff renderer for LazyGit"
             homepage "https://github.com/dantehemerson/difftonic"
-            version "$TAG"
+            version "${TAG}"
             license "MIT"
+
             on_macos do
-              url "$ASSET_URL"
-              sha256 "$EXPECTED_SHA"
+              url "${ASSET_URL}"
+              sha256 "${EXPECTED_SHA}"
             end
 
             def install
@@ -118,8 +111,8 @@ jobs:
               assert_match "+new", output
             end
           end
-          HEREDOC
-          sed -i "s|^          ||g" Formula/difftonic.rb
+          FORMULA
+          sed -i '' 's/^          //' Formula/difftonic.rb
 
       - name: Commit and push
         run: |
