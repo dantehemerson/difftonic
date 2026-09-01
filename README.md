@@ -11,6 +11,7 @@ tree-sitter, and emits an ANSI-colored, gutter-numbered unified diff to stdout.
 - 🔧 **LazyGit Integration** — Drop-in `diffRenderer` for LazyGit
 - 🎨 **Syntax Highlighting** — Tree-sitter powered tokenization for 10+ languages
 - 🌈 **Multiple Themes** — Dark, light, auto, system, and adaptive themes
+- 📁 **File Icons** — Nerd-font icons for file types in the title bar
 
 ## Architecture
 
