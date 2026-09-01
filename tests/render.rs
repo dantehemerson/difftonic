@@ -1,4 +1,4 @@
-use diffview::{parse_patch, render, FileDiff, RenderOptions};
+use difftonic::{parse_patch, render, FileDiff, RenderOptions};
 
 fn strip_ansi(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
@@ -40,7 +40,7 @@ fn parse_new_file() {
     let input = "diff --git a/new.txt b/new.txt\nnew file mode 100644\nindex 0000000..abc1234\n--- /dev/null\n+++ b/new.txt\n@@ -0,0 +1,2 @@\n+hello\n+world\n";
     let files = parse_patch(input);
     assert_eq!(files.len(), 1);
-    assert!(matches!(files[0].state, diffview::State::New));
+    assert!(matches!(files[0].state, difftonic::State::New));
 }
 
 #[test]
@@ -48,7 +48,7 @@ fn parse_deleted_file() {
     let input = "diff --git a/old.txt b/old.txt\ndeleted file mode 100644\nindex abc1234..0000000\n--- a/old.txt\n+++ /dev/null\n@@ -1,2 +0,0 @@\n-bye\n-cruel world\n";
     let files = parse_patch(input);
     assert_eq!(files.len(), 1);
-    assert!(matches!(files[0].state, diffview::State::Deleted));
+    assert!(matches!(files[0].state, difftonic::State::Deleted));
 }
 
 #[test]
@@ -56,7 +56,7 @@ fn parse_renamed_file() {
     let input = "diff --git a/old.txt b/new.txt\nsimilarity index 100%\nrename from old.txt\nrename to new.txt\n";
     let files = parse_patch(input);
     assert_eq!(files.len(), 1);
-    assert!(matches!(files[0].state, diffview::State::Renamed));
+    assert!(matches!(files[0].state, difftonic::State::Renamed));
 }
 
 #[test]
@@ -151,17 +151,17 @@ fn render_gutter_on_every_code_line() {
     let out = render(input, &opts());
     let gutter_bgs = [
         format!("48;2;{};{};{}",
-            (diffview::DARK.meta_bg >> 16) & 0xff,
-            (diffview::DARK.meta_bg >> 8) & 0xff,
-            diffview::DARK.meta_bg & 0xff),
+            (difftonic::DARK.meta_bg >> 16) & 0xff,
+            (difftonic::DARK.meta_bg >> 8) & 0xff,
+            difftonic::DARK.meta_bg & 0xff),
         format!("48;2;{};{};{}",
-            (diffview::DARK.del_gutter_bg >> 16) & 0xff,
-            (diffview::DARK.del_gutter_bg >> 8) & 0xff,
-            diffview::DARK.del_gutter_bg & 0xff),
+            (difftonic::DARK.del_gutter_bg >> 16) & 0xff,
+            (difftonic::DARK.del_gutter_bg >> 8) & 0xff,
+            difftonic::DARK.del_gutter_bg & 0xff),
         format!("48;2;{};{};{}",
-            (diffview::DARK.add_gutter_bg >> 16) & 0xff,
-            (diffview::DARK.add_gutter_bg >> 8) & 0xff,
-            diffview::DARK.add_gutter_bg & 0xff),
+            (difftonic::DARK.add_gutter_bg >> 16) & 0xff,
+            (difftonic::DARK.add_gutter_bg >> 8) & 0xff,
+            difftonic::DARK.add_gutter_bg & 0xff),
     ];
     let code_lines: Vec<&str> = out.split('\n').filter(|l| l.contains("keep") || l.contains("old") || l.contains("new") || l.contains("end")).collect();
     assert!(!code_lines.is_empty());
@@ -211,15 +211,15 @@ fn render_line_numbers_colored_for_changes() {
     assert!(deletion_line.is_some());
     let add_fg = format!(
         "38;2;{};{};{}",
-        (diffview::DARK.add_accent >> 16) & 0xff,
-        (diffview::DARK.add_accent >> 8) & 0xff,
-        diffview::DARK.add_accent & 0xff
+        (difftonic::DARK.add_accent >> 16) & 0xff,
+        (difftonic::DARK.add_accent >> 8) & 0xff,
+        difftonic::DARK.add_accent & 0xff
     );
     let del_fg = format!(
         "38;2;{};{};{}",
-        (diffview::DARK.del_accent >> 16) & 0xff,
-        (diffview::DARK.del_accent >> 8) & 0xff,
-        diffview::DARK.del_accent & 0xff
+        (difftonic::DARK.del_accent >> 16) & 0xff,
+        (difftonic::DARK.del_accent >> 8) & 0xff,
+        difftonic::DARK.del_accent & 0xff
     );
     let raw_add = out.split('\n').find(|l| l.contains("new") && l.contains("+")).unwrap();
     let raw_del = out.split('\n').find(|l| l.contains("old") && l.contains("-")).unwrap();
@@ -404,15 +404,15 @@ fn render_addition_line_numbers_painted_green() {
     let out = render(input, &opts());
     let add_fg = format!(
         "38;2;{};{};{}",
-        (diffview::DARK.add_accent >> 16) & 0xff,
-        (diffview::DARK.add_accent >> 8) & 0xff,
-        diffview::DARK.add_accent & 0xff
+        (difftonic::DARK.add_accent >> 16) & 0xff,
+        (difftonic::DARK.add_accent >> 8) & 0xff,
+        difftonic::DARK.add_accent & 0xff
     );
     let del_fg = format!(
         "38;2;{};{};{}",
-        (diffview::DARK.del_accent >> 16) & 0xff,
-        (diffview::DARK.del_accent >> 8) & 0xff,
-        diffview::DARK.del_accent & 0xff
+        (difftonic::DARK.del_accent >> 16) & 0xff,
+        (difftonic::DARK.del_accent >> 8) & 0xff,
+        difftonic::DARK.del_accent & 0xff
     );
     let raw_add = out.split('\n').find(|l| l.contains("new") && l.contains("+")).unwrap();
     let raw_del = out.split('\n').find(|l| l.contains("old") && l.contains("-")).unwrap();
@@ -429,14 +429,14 @@ fn render_separator_present_for_multi_file() {
 
 #[test]
 fn char_count_handles_utf8() {
-    use diffview::char_count;
-    let s = format!("{} example.ts", diffview::FILE_ICON);
+    use difftonic::char_count;
+    let s = format!("{} example.ts", difftonic::FILE_ICON);
     assert_eq!(char_count(&s), 1 + 1 + 10);
 }
 
 #[test]
 fn char_count_skips_ansi() {
-    use diffview::char_count;
+    use difftonic::char_count;
     let s = "\x1b[0m\x1b[38;2;1;2;3mhello\x1b[0m";
     assert_eq!(char_count(s), 5);
 }
@@ -525,9 +525,9 @@ fn hunk_header_uses_muted_foreground() {
     let out = render(input, &opts());
     let muted_fg = format!(
         "38;2;{};{};{}",
-        (diffview::DARK.hunk_fg >> 16) & 0xff,
-        (diffview::DARK.hunk_fg >> 8) & 0xff,
-        diffview::DARK.hunk_fg & 0xff
+        (difftonic::DARK.hunk_fg >> 16) & 0xff,
+        (difftonic::DARK.hunk_fg >> 8) & 0xff,
+        difftonic::DARK.hunk_fg & 0xff
     );
     let hunk_line = out.split('\n').find(|l| l.contains("@@")).unwrap();
     assert!(hunk_line.contains(&muted_fg), "hunk header should use muted hunk_fg, line={}", hunk_line);

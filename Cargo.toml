@@ -1,16 +1,16 @@
 [package]
-name = "diffview"
+name = "difftonic"
 version = "0.3.0"
 edition = "2021"
 description = "Fast syntax-highlighted terminal diff renderer for LazyGit"
 license = "MIT"
 
 [lib]
-name = "diffview"
+name = "difftonic"
 path = "src/lib.rs"
 
 [[bin]]
-name = "diffview"
+name = "difftonic"
 path = "src/main.rs"
 
 [dependencies]

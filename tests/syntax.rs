@@ -1,4 +1,4 @@
-use diffview::{render, RenderOptions, Theme, DARK};
+use difftonic::{render, RenderOptions, Theme, DARK};
 
 fn strip_ansi(s: &str) -> String {
     let mut out = String::with_capacity(s.len());

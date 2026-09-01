@@ -1,11 +1,11 @@
 use clap::Parser;
-use diffview::{render, RenderOptions};
+use difftonic::{render, RenderOptions};
 use std::io::{self, Read};
 use terminal_size::{terminal_size, Width};
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "diffview",
+    name = "difftonic",
     version = "0.3.0",
     about = "Fast syntax-highlighted terminal diff renderer"
 )]
@@ -58,7 +58,7 @@ fn main() {
         })
         .or_else(|| terminal_size().map(|(Width(w), _)| w as usize))
         .or_else(tty_columns)
-        .unwrap_or(diffview::DEFAULT_WIDTH);
+        .unwrap_or(difftonic::DEFAULT_WIDTH);
     let options = RenderOptions {
         syntax_theme: args.syntax_theme,
         theme: args.theme,

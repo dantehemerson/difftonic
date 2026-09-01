@@ -1,4 +1,4 @@
-# Diffview
+# Difftonic
 
 Fast syntax-highlighted terminal diff renderer for LazyGit, written in Rust.
 
@@ -10,7 +10,7 @@ cargo test --test render            # run render tests only
 cargo test --test syntax            # run syntax tests only
 cargo test --test render hunk_      # run hunk tests only
 cargo build --release               # build release binary
-cargo install --path .              # install to ~/.cargo/bin/diffview
+cargo install --path .              # install to ~/.cargo/bin/difftonic
 ```
 
 ## Project Structure
@@ -57,10 +57,10 @@ tests/
 ## Running the Binary
 
 ```sh
-git diff --no-color | diffview
-git diff --no-color | diffview --theme dark
-git diff --no-color | diffview --no-line-numbers
-git diff --no-color | diffview -w 120
+git diff --no-color | difftonic
+git diff --no-color | difftonic --theme dark
+git diff --no-color | difftonic --no-line-numbers
+git diff --no-color | difftonic -w 120
 ```
 
 ## LazyGit Config
@@ -68,8 +68,8 @@ git diff --no-color | diffview -w 120
 ```yaml
 git:
   diffRenderers:
-    - name: diffview
+    - name: difftonic
       type: stdinFilter
       colorArg: never
-      command: diffview
+      command: difftonic
 ```

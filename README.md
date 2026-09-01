@@ -1,4 +1,4 @@
-# diffview
+# difftonic
 
 Fast, syntax-highlighted Git diff renderer designed for use as a LazyGit `diffRenderer`.
 
@@ -29,13 +29,13 @@ Or build locally:
 
 ```sh
 cargo build --release
-# binary at target/release/diffview
+# binary at target/release/difftonic
 ```
 
 ## Usage
 
 ```
-diffview [options] < patch
+difftonic [options] < patch
 ```
 
 | Flag                    | Description                                                                                | Default              |
@@ -51,12 +51,12 @@ diffview [options] < patch
 ### Examples
 
 ```sh
-git diff --no-color | diffview
-git diff --no-color | diffview --theme dark
-git diff --no-color | diffview --theme system
-git diff --no-color | diffview --theme adaptive
-git diff --no-color | diffview --no-line-numbers
-git diff --no-color | diffview -w 120
+git diff --no-color | difftonic
+git diff --no-color | difftonic --theme dark
+git diff --no-color | difftonic --theme system
+git diff --no-color | difftonic --theme adaptive
+git diff --no-color | difftonic --no-line-numbers
+git diff --no-color | difftonic -w 120
 ```
 
 ## Use with LazyGit
@@ -66,10 +66,10 @@ git diff --no-color | diffview -w 120
 # ~/Library/Application Support/lazygit/config.yml (macOS)
 git:
   diffRenderers:
-    - name: diffview
+    - name: difftonic
       type: stdinFilter
       colorArg: never
-      command: diffview
+      command: difftonic
 ```
 
 LazyGit must produce uncolored diffs (`colorArg: never`) so the renderer can
@@ -80,14 +80,14 @@ To pass theme options:
 ```yaml
 git:
   diffRenderers:
-    - name: diffview-dark
+    - name: difftonic-dark
       type: stdinFilter
       colorArg: never
-      command: diffview --theme dark
-    - name: diffview-light
+      command: difftonic --theme dark
+    - name: difftonic-light
       type: stdinFilter
       colorArg: never
-      command: diffview --theme light
+      command: difftonic --theme light
 ```
 
 Use the `|` keybinding inside LazyGit to cycle between renderers.
