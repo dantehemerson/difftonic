@@ -1,5 +1,6 @@
 use std::path::Path;
 use tree_sitter_highlight::{HighlightConfiguration, HighlightEvent, Highlighter};
+use unicode_width::UnicodeWidthStr;
 
 mod highlight;
 mod icons;
@@ -895,7 +896,12 @@ pub fn render_stats(parts: &[(String, u32, bool)], theme: Theme) -> String {
 }
 
 pub fn char_count(s: &str) -> usize {
-    let mut n = 0;
+    let stripped = strip_ansi_sequences(s);
+    UnicodeWidthStr::width(stripped.as_str())
+}
+
+fn strip_ansi_sequences(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
     let mut chars = s.chars().peekable();
     while let Some(c) = chars.next() {
         if c == '\x1b' {
@@ -907,9 +913,9 @@ pub fn char_count(s: &str) -> usize {
             }
             continue;
         }
-        n += 1;
+        out.push(c);
     }
-    n
+    out
 }
 
 pub fn render_line(

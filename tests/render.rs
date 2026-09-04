@@ -1,4 +1,5 @@
 use difftonic::{parse_patch, render, RenderOptions};
+use unicode_width::UnicodeWidthStr;
 
 fn strip_ansi(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
@@ -590,4 +591,38 @@ fn hunk_header_omits_indicator_when_direction_is_unknown() {
         hunk_line.chars().take(12).collect::<String>(),
         "            "
     );
+}
+
+#[test]
+fn emoji_and_empty_added_lines_no_extra_wrapping() {
+    let input = "diff --git a/x.ts b/x.ts\n--- a/x.ts\n+++ b/x.ts\n@@ -1,0 +1,5 @@\n+short\n+\n+\n+\n+emoji line with star\n";
+    let mut o = opts();
+    o.width = 60;
+    let out = render(input, &o);
+    let plain = strip_ansi(&out);
+    let code_lines: Vec<&str> = plain
+        .lines()
+        .filter(|l| l.contains("+ short") || l.contains("+ emoji"))
+        .collect();
+    assert!(!code_lines.is_empty());
+    for line in &code_lines {
+        assert!(
+            UnicodeWidthStr::width(*line) <= 60,
+            "code line exceeds width: {:?} (display width {})",
+            line,
+            UnicodeWidthStr::width(*line),
+        );
+    }
+    let empty_lines: Vec<&str> = plain
+        .lines()
+        .filter(|l| l.trim_end().ends_with("+") && l.trim().len() <= 12)
+        .collect();
+    for line in &empty_lines {
+        assert!(
+            UnicodeWidthStr::width(*line) <= 60,
+            "empty line exceeds width: {:?} (display width {})",
+            line,
+            UnicodeWidthStr::width(*line),
+        );
+    }
 }
