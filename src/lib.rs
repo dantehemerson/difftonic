@@ -1,6 +1,6 @@
 use std::path::Path;
 use tree_sitter_highlight::{HighlightConfiguration, HighlightEvent, Highlighter};
-use unicode_width::UnicodeWidthStr;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 mod highlight;
 mod icons;
@@ -897,7 +897,39 @@ pub fn render_stats(parts: &[(String, u32, bool)], theme: Theme) -> String {
 
 pub fn char_count(s: &str) -> usize {
     let stripped = strip_ansi_sequences(s);
-    UnicodeWidthStr::width(stripped.as_str())
+    display_width(&stripped)
+}
+
+pub fn display_width(s: &str) -> usize {
+    let mut width = 0;
+    let mut had_tab = false;
+    for segment in s.split('\t') {
+        width += UnicodeWidthStr::width(segment);
+        if had_tab {
+            let tab_size = 8 - (width % 8);
+            width += tab_size;
+        }
+        had_tab = true;
+    }
+    width
+}
+
+pub fn expand_tabs(s: &str, start_col: usize) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut col = start_col;
+    for ch in s.chars() {
+        if ch == '\t' {
+            let pad = 8 - (col % 8);
+            for _ in 0..pad {
+                out.push(' ');
+            }
+            col += pad;
+        } else {
+            out.push(ch);
+            col += UnicodeWidthChar::width(ch).unwrap_or(0);
+        }
+    }
+    out
 }
 
 fn strip_ansi_sequences(s: &str) -> String {
@@ -969,11 +1001,14 @@ pub fn render_line(
     };
     out.push_str(&paint(marker, gutter_bg, Some(fg), false, line.kind == Kind::Context));
 
+    let code_start_col = if numbers { 15 } else { 4 };
     if tokens.is_empty() {
-        out.push_str(&paint(&line.text, code_bg, Some(fg), false, line.kind == Kind::Context));
+        let text = expand_tabs(&line.text, code_start_col);
+        out.push_str(&paint(&text, code_bg, Some(fg), false, line.kind == Kind::Context));
     } else {
         for tok in tokens {
-            out.push_str(&paint(&tok.text, code_bg, Some(tok.color), false, line.kind == Kind::Context));
+            let text = expand_tabs(&tok.text, code_start_col);
+            out.push_str(&paint(&text, code_bg, Some(tok.color), false, line.kind == Kind::Context));
         }
     }
 

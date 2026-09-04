@@ -626,3 +626,53 @@ fn emoji_and_empty_added_lines_no_extra_wrapping() {
         );
     }
 }
+
+#[test]
+fn display_width_expands_tabs_to_next_tab_stop() {
+    use difftonic::display_width;
+    assert_eq!(display_width("\t"), 8);
+    assert_eq!(display_width("a\t"), 8);
+    assert_eq!(display_width("abcdef\t"), 8);
+    assert_eq!(display_width("abcdefg\t"), 8);
+    assert_eq!(display_width("abcdefgh\t"), 16);
+    assert_eq!(display_width("\thello\t"), 16);
+}
+
+#[test]
+fn tab_in_diff_line_fits_within_configured_width() {
+    let input = "diff --git a/x.ts b/x.ts\nindex abc..def 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1,1 +1,1 @@\n-\tindented\n+\tindented\n";
+    let mut o = opts();
+    o.width = 40;
+    let out = render(input, &o);
+    let plain = strip_ansi(&out);
+    for line in plain.split('\n') {
+        if line.contains("indented") {
+            assert_eq!(
+                line.chars().count(),
+                40,
+                "tabbed code line should fill width: {:?}",
+                line
+            );
+        }
+    }
+}
+
+#[test]
+fn tab_in_diff_line_with_no_line_numbers_fits() {
+    let input = "diff --git a/x.ts b/x.ts\nindex abc..def 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1,1 +1,1 @@\n-\tindented\n+\tindented\n";
+    let mut o = opts();
+    o.width = 30;
+    o.no_line_numbers = true;
+    let out = render(input, &o);
+    let plain = strip_ansi(&out);
+    for line in plain.split('\n') {
+        if line.contains("indented") {
+            assert_eq!(
+                line.chars().count(),
+                30,
+                "tabbed code line should fill width: {:?}",
+                line
+            );
+        }
+    }
+}
